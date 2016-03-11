@@ -5,6 +5,10 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
 def hypersphere_distribution(size, dimensions):
+    '''
+    Reference:
+    http://math.stackexchange.com/questions/87230/picking-random-points-in-the-volume-of-sphere-with-uniform-probability
+    '''
     U = numpy.random.rand(size)
     X = numpy.random.normal(size=(dimensions, size))
 
