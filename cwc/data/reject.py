@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 def hypercube_distribution(size, dimensions):
     return numpy.random.rand(dimensions, num_reject)*2-1
 
-def hypersphere_distribution(size, dimensions):
+def hypersphere_distribution(size, dimensions, radius=1.0):
     '''
     Reference:
     http://math.stackexchange.com/questions/87230/picking-random-points-in-the-volume-of-sphere-with-uniform-probability
@@ -13,7 +13,7 @@ def hypersphere_distribution(size, dimensions):
     U = numpy.random.rand(size)
     X = numpy.random.normal(size=(size, dimensions))
 
-    sphere1 = numpy.power(U, 1.0/dimensions).reshape((-1,1))
+    sphere1 = radius*numpy.power(U, 1.0/dimensions).reshape((-1,1))
     sphere2 = sphere1*X
     sphere3 = sphere2/numpy.sqrt(numpy.sum(X**2.0, axis=1)).reshape((-1,1))
 
