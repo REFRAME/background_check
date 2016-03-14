@@ -3,7 +3,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
 
-def generate_gaussian_data(means=[[0,0]], covs=[[[1,0],[0,1]]], samples=[1]):
+def generate_gaussians(means=[[0,0]], covs=[[[1,0],[0,1]]], samples=[1]):
     print('means shape = {} len = {}'.format(numpy.shape(means), len(means)))
     X = numpy.empty(shape=(sum(samples),numpy.shape(means)[1]))
     Y = numpy.empty(shape=(sum(samples)))
@@ -21,8 +21,8 @@ def generate_gaussian_data(means=[[0,0]], covs=[[[1,0],[0,1]]], samples=[1]):
 
     return X, Y
 
-def test_generate_gaussian_data():
-    x, y = generate_gaussian_data(means=[[0,0,0],[1,1,1]],
+def test_generate_gaussians():
+    x, y = generate_gaussians(means=[[0,0,0],[1,1,1]],
                                   covs=[[[2,1,0],[1,1,0],[0,0,1]],
                                         [[1,0,0],[0,1,1],[0,1,2]]],
                                   samples=[1000, 500])
@@ -37,4 +37,4 @@ def test_generate_gaussian_data():
     plt.show()
 
 if __name__ == '__main__':
-    test_generate_gaussian_data()
+    test_generate_gaussians()
