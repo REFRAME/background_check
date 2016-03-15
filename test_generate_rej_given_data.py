@@ -51,33 +51,40 @@ def test_rej_data():
 def test_rej_data_given_x():
 
     # Options for data generation
-    samples = [5000,         # Class 1
-               5000]         # Class 2
+    samples = [700,         # Class 1
+               500,         # Class 2
+               400]         # Class 3
     means = [[3,3,3],       # Class 1
-             [5,5,5]]       # Class 2
+             [5,5,5],       # Class 2
+             [3,5,5]]       # Class 3
     covs = [[[2,1,0],       # Class 1
              [1,2,0],
              [0,0,1]],
             [
              [1,0,0],       # Class 2
              [0,1,0],
-             [0,0,1]]]
+             [0,0,1]],
+            [
+             [1,0,0],       # Class 3
+             [0,1,1],
+             [0,1,2]]]
     # Options for reject data generation
-    proportion = 0.5
+    proportion = 0.9
     hshape_cov = 0
-    hshape_prop_in = 0.8
+    hshape_prop_in = 0.99
+    hshape_multiplier = 1.5
     pca = True
     pca_components = 0
-    pca_variance = 0.99
+    pca_variance = 0.9
 
     # Options for plotting
-    colors = ['r', 'b', 'y']    # One color per class + reject
+    colors = ['r', 'b', 'g', 'y']    # One color per class + reject
 
 
     x, y = toy_examples.generate_gaussians(means=means, covs=covs,
                                            samples=samples)
 
-    for method in ['uniform_hsphere']: # 'uniform_hcube', 'uniform_hsphere'
+    for method in ['uniform_hcube', 'uniform_hsphere']: # 'uniform_hcube', 'uniform_hsphere'
         fig = plt.figure(method)
         fig.clf()
         ax = fig.add_subplot(111, projection='3d')
@@ -85,12 +92,13 @@ def test_rej_data_given_x():
             index = (y == k)
             ax.scatter(x[index,0], x[index,1], x[index,2], c=c)
 
-
         r = reject.create_reject_data(x, proportion=proportion,
                                       method=method, pca=pca,
                                       pca_variance=pca_variance,
+                                      pca_components=pca_components,
                                       hshape_cov=hshape_cov,
-                                      hshape_prop_in=hshape_prop_in)
+                                      hshape_prop_in=hshape_prop_in,
+                                      hshape_multiplier=hshape_multiplier)
         ax.scatter(r[:,0], r[:,1], r[:,2], c=colors[-1])
 
 if __name__ == '__main__':
