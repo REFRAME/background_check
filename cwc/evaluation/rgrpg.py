@@ -26,13 +26,14 @@ class RGRPG:
         ROC curves for all recall-gain values of the first classifier are used to build the surface.
 
     Args:
-        step1_labels ([int]): The labels for evaluating the training data vs reject data classifier.
-            1 for training data, 0 for reject data.
-        step1_scores ([float]): The second parameter. Defaults to None.
-            Second line of description should be indented.
-        step2_labels ([int]): The labels for evaluating the real training data classifier.
-            1 for the positive class, 0 for the negative class.
-        step2_scores ([float]): The scores obtained from the second classifier.
+        step1_reject_scores ([float]): Scores for the reject data, obtained from
+            the training data vs reject data classifier.
+        step1_training_scores ([float]): Scores for the training data, obtained from
+            the training data vs reject data classifier.
+        step2_training_scores ([int]): Scores for the training data, obtained from
+            the original classifier.
+        training_labels ([int]): Labels of the training data. 1 for the positive class
+            and 0 for the negative class.
 
     Attributes:
         recall_gains ([float]): The recall-gains calculated by thresholding over step1_scores and using step1_labels.
@@ -43,7 +44,10 @@ class RGRPG:
             step2_labels.
 
     """
-    def __init__(self, step1_labels, step1_scores, step2_labels, step2_scores):
+    def __init__(self, step1_reject_scores, step1_training_scores, step2_training_scores, training_labels):
+        step1_scores = np.append(step1_training_scores, step1_reject_scores)
+        step1_labels = np.append(np.ones(np.alen(training_labels)), np.zeros(np.alen(step1_reject_scores)))
+
         prg_curve = calculate_prg_points(step1_labels, step1_scores)
         self.recall_gains = prg_curve['recall_gain'][prg_curve['recall_gain'] >= 0]
         self.precision_gains = prg_curve['precision_gain'][prg_curve['recall_gain'] >= 0]
@@ -56,8 +60,8 @@ class RGRPG:
 
         for rg in np.arange(n_recalls):
             true_positive_indices = np.where(np.logical_and(step1_scores >= pos_scores[rg], step1_labels == 1))[0]
-            probabilities = step2_scores[true_positive_indices]
-            labels = 1*(step2_labels[true_positive_indices] == 1)
+            probabilities = step2_training_scores[true_positive_indices]
+            labels = training_labels[true_positive_indices]
 
             self.areas[rg] = roc_auc_score(labels, probabilities)
             fpr, tpr, thresholds = roc_curve(labels, probabilities)
