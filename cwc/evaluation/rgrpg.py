@@ -1,8 +1,11 @@
+from __future__ import division
 import numpy as np
 from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_curve
 from sklearn.metrics import auc
 from prg import calculate_prg_points
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 """
 This file contains functions for calculating the rgrpg surface, plotting it and calculating the volume under it.
@@ -10,8 +13,51 @@ This file contains functions for calculating the rgrpg surface, plotting it and 
 """
 
 
+def even_out_roc_points(rocs):
+    """This function uses linear interpolation to generate more points for any roc curves with less points than
+    the others. This is done to allow for the surface plotting.
+
+    Args:
+        rocs (dict{[[float]]}): Roc curves from an RGPRG surface.
+
+    Returns:
+        rocs (dict{[[float]]}): The same ROC curves, now with the same number of points for all of them.
+
+    """
+    n_recall_gains = np.alen(rocs.keys())
+    # Create points for every ROC curve, so that it has the same number of points as the next curve.
+    # Start from the second to last curve, since the last one has the highest number of points, and go back to
+    # the first one.
+    for index in np.arange(n_recall_gains-2, -1, -1):
+        next_roc = rocs[index + 1]
+        max_points = np.alen(next_roc)
+        roc = np.copy(rocs[index])
+        n_points_roc = np.alen(roc)
+        if n_points_roc < max_points:
+            for point in np.arange(1, n_points_roc):
+                # Get two points from the roc curve.
+                point_1 = roc[point - 1, :]
+                point_2 = roc[point, :]
+                # Check how many points in the next curve have false positive rates between these two points.
+                n_points_interval = np.sum(np.logical_and(next_roc[:, 1] > point_1[1],
+                                                          next_roc[:, 1] < point_2[1]))
+                if (n_points_interval + n_points_roc) > max_points:
+                    n_points_interval = max_points - n_points_roc
+                if n_points_interval > 0:
+                    new_points = np.zeros((n_points_interval, 2))
+                    # Calculate the slope of the line connecting the two points.
+                    slope = (point_2[0] - point_1[0]) / (point_2[1] - point_1[1])
+
+                    # Create n_points_interval uniformly between the two points
+                    new_points[:, 1] = np.linspace(point_1[1], point_2[1], n_points_interval + 2)[1:-1]
+                    new_points[:, 0] = slope * (new_points[:, 1] - point_1[1]) + point_1[0]
+                    # Insert the new points between the two selected points
+                    rocs[index] = np.insert(rocs[index], point, new_points, 0)
+    return rocs
+
+
 def build_rgrpg_surface(step1_labels, step1_scores, step2_labels, step2_scores):
-    """This function finds the points that form the rgrpg surface.
+    """This function finds the points that form the RGPRG surface.
 
     Args:
         step1_labels ([int]): The labels for evaluating the training data vs reject data classifier.
@@ -23,9 +69,12 @@ def build_rgrpg_surface(step1_labels, step1_scores, step2_labels, step2_scores):
         step2_scores ([float]): The scores obtained from the second classifier.
 
     Returns:
-        [float]: The recall-gains calculated by thresholding over step1_scores and using step1_labels.
-        [float]: The areas of the roc curves calculated by thresholding over step2_scores and using step2_labels,
-            multiplied by the precision-gains corresponding to the returned recall-gains.
+        recall_gains ([float]): The recall-gains calculated by thresholding over step1_scores and using step1_labels.
+        precision_gains ([float]): The precision-gains calculated by thresholding over step1_scores
+            and using step1_labels.
+        rocs (dict{[[float]]}): The ROC curves calculated by thresholding over step2_scores and using step2_labels.
+        areas ([float]): The areas of the roc curves calculated by thresholding over step2_scores and using
+            step2_labels.
 
     """
 
@@ -37,33 +86,37 @@ def build_rgrpg_surface(step1_labels, step1_scores, step2_labels, step2_scores):
     n_recalls = np.alen(recall_gains)
     areas = np.zeros(n_recalls)
 
+    rocs = dict()
+
     for rg in np.arange(n_recalls):
-        true_positive_indices = np.logical_and(step1_scores >= pos_scores[rg], step1_labels == 1)
+        true_positive_indices = np.where(np.logical_and(step1_scores >= pos_scores[rg], step1_labels == 1))[0]
         probabilities = step2_scores[true_positive_indices]
-        labels = step2_labels[true_positive_indices] == 1
+        labels = 1*(step2_labels[true_positive_indices] == 1)
 
-        areas[rg] = roc_auc_score(labels, probabilities)*precision_gains[rg]
+        areas[rg] = roc_auc_score(labels, probabilities)
+        fpr, tpr, thresholds = roc_curve(labels, probabilities)
+        rocs[rg] = np.append(tpr.reshape(-1, 1), fpr.reshape(-1, 1), axis=1)
+    return [recall_gains, precision_gains, even_out_roc_points(rocs), areas]
 
-    return [recall_gains, areas]
 
-
-def plot_rgrpg_2d(recall_gains, areas):
-    """This function plots the 2d version of the rgrpg surface, with the recall-gains from the
+def plot_rgrpg_2d(recall_gains, precision_gains, areas):
+    """This function plots the 2d version of the RGPRG surface, with the recall-gains from the
     training data vs reject data classifier on the x-axis and the area under the corresponding roc curve of the real
     training data classifier, multiplied by the corresponding precision-gain from the
     training data vs reject data classifier on the y-axis.
 
     Args:
         recall_gains ([float]): The recall-gains from the rgrpg surface.
-        areas ([float]): The areas of the corresponding roc curves, multiplied by the corresponding precision-gains.
+        precision_gains ([float]): The precision-gains from the rgrpg surface.
+        areas ([float]): The areas of the corresponding roc curves.
 
     Returns:
         Nothing.
 
     """
 
-    plt.scatter(recall_gains, areas)
-    plt.plot(recall_gains, areas)
+    plt.scatter(recall_gains, areas*precision_gains)
+    plt.plot(recall_gains, areas*precision_gains)
     plt.xlabel("Recall-gains_1")
     plt.ylabel("AUROC_2 * Precision-gains_1")
     axes = plt.gca()
@@ -72,16 +125,59 @@ def plot_rgrpg_2d(recall_gains, areas):
     plt.show()
 
 
-def calculate_volume(recall_gains, areas):
-    """This function calculates the volume under the rgrpg surface.
+def plot_rgrpg_3d(recall_gains, precision_gains, rocs):
+    """This function plots the 3d version of the RGPRG surface, with the recall-gains from the
+    training data vs reject data classifier on the z-axis and the true positive and false positive rates of the
+    corresponding ROC curve of the real training data classifier on y-axis and on the x-axis, respectively.
+    The true positive rate (y-axis) of the real training data classifier is multiplied by the precision-gain of the
+    training data vs reject data classifier.
 
     Args:
-        recall_gains ([float]): The recall-gains from the rgrpg surface.
-        areas ([float]): The areas of the corresponding roc curves, multiplied by the corresponding precision-gains.
+        recall_gains ([float]): The recall-gains from the RGPRG surface.
+        precision_gains ([float]): The precision-gains from the RGPRG surface.
+        rocs (dict{[[float]]}): The areas of the corresponding ROC curves.
 
     Returns:
-        float: The volume under the recall-gain_1 and roc_2 * precision-gain1 surface.
+        Nothing.
 
     """
-    return auc(areas, recall_gains, reorder=True)
+
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+
+    n_points = np.alen(rocs[0])
+    crossing_lines = np.zeros((n_points, np.alen(recall_gains), 3))
+
+    for i, recall_gain in enumerate(recall_gains):
+        roc = rocs[i]
+        ax.plot(roc[:, 1], roc[:, 0] * precision_gains[i], np.ones(np.alen(roc))*recall_gain, 'ko')
+        ax.plot(roc[:, 1], roc[:, 0] * precision_gains[i], np.ones(np.alen(roc))*recall_gain, 'k-')
+
+        for point in np.arange(n_points):
+            crossing_lines[point, i, :] = np.array([roc[point, 1], roc[point, 0] * precision_gains[i], recall_gain])
+
+    for point in np.arange(n_points):
+        crossing_line = crossing_lines[point]
+        ax.plot(crossing_line[:, 0], crossing_line[:, 1], crossing_line[:, 2], 'k-')
+
+    ax.set_xlabel('$FP_r^2$')
+    ax.set_ylabel('$TP_r^2 * PG^1$')
+    ax.set_zlabel('$RG^1$')
+
+    plt.show()
+
+
+def calculate_volume(recall_gains, precision_gains, areas):
+    """This function calculates the volume under the RGPRG surface.
+
+    Args:
+        recall_gains ([float]): The recall-gains from the RGPRG surface.
+        precision_gains ([float]): The precision-gains from the RGPRG surface.
+        areas ([float]): The areas of the corresponding roc curves.
+
+    Returns:
+        float: The volume under the Recall-gain-ROC-Precision-gain surface.
+
+    """
+    return auc(areas*precision_gains, recall_gains, reorder=True)
 
