@@ -49,20 +49,49 @@ def test_rej_data():
     ax.scatter(r_transform[:,0], r_transform[:,1], r_transform[:,2], c='y')
 
 def test_rej_data_given_x():
-    samples = [500, 500]
-    x, y = toy_examples.generate_gaussians(means=[[3,3,3],[5,5,5]],
-                                  covs=[[[2,1,0],[1,1,0],[0,0,1]],
-                                        [[1,0,0],[0,1,1],[0,1,2]]],
-                                  samples=samples)
 
-    fig = plt.figure('data')
-    ax = fig.add_subplot(111, projection='3d')
-    for k, c in [(0, 'r'), (1, 'b')]:
-        index = (y == k)
-        ax.scatter(x[index,0], x[index,1], x[index,2], c=c)
+    # Options for data generation
+    samples = [5000,         # Class 1
+               5000]         # Class 2
+    means = [[3,3,3],       # Class 1
+             [5,5,5]]       # Class 2
+    covs = [[[2,1,0],       # Class 1
+             [1,2,0],
+             [0,0,1]],
+            [
+             [1,0,0],       # Class 2
+             [0,1,0],
+             [0,0,1]]]
+    # Options for reject data generation
+    proportion = 0.5
+    hshape_cov = 0
+    hshape_prop_in = 0.8
+    pca = True
+    pca_components = 0
+    pca_variance = 0.99
 
-    r = reject.create_reject_data(x, proportion=1, method='uniform_hsphere')
-    ax.scatter(r[:,0], r[:,1], r[:,2], c='y')
+    # Options for plotting
+    colors = ['r', 'b', 'y']    # One color per class + reject
+
+
+    x, y = toy_examples.generate_gaussians(means=means, covs=covs,
+                                           samples=samples)
+
+    for method in ['uniform_hsphere']: # 'uniform_hcube', 'uniform_hsphere'
+        fig = plt.figure(method)
+        fig.clf()
+        ax = fig.add_subplot(111, projection='3d')
+        for k, c in enumerate(colors[:-1]):
+            index = (y == k)
+            ax.scatter(x[index,0], x[index,1], x[index,2], c=c)
+
+
+        r = reject.create_reject_data(x, proportion=proportion,
+                                      method=method, pca=pca,
+                                      pca_variance=pca_variance,
+                                      hshape_cov=hshape_cov,
+                                      hshape_prop_in=hshape_prop_in)
+        ax.scatter(r[:,0], r[:,1], r[:,2], c=colors[-1])
 
 if __name__ == '__main__':
     test_rej_data_given_x()
