@@ -3,41 +3,53 @@ import numpy as np
 
 
 def precision_gain(tp, fn, fp, tn):
+    """Calculates Precision Gain from the contingency table
+
+    This function calculates Precision Gain from the entries of the contingency
+    table: number of true positives (TP), false negatives (FN), false positives
+    (FP), and true negatives (TN). More information on Precision-Recall-Gain
+    curves and how to cite this work is available at
+    http://www.cs.bris.ac.uk/~flach/PRGcurves/.
+    """
     n_pos = tp + fn
     n_neg = fp + tn
     prec_gain = 1. - (n_pos * fp) / (n_neg * tp)
-    prec_gain[tn + fn == 0] = 0
-    return prec_gain
-
-
-def recall_gain(tp, fn, fp, tn):
-    n_pos = tp + fn
-    n_neg = fp + tn
-    rg = 1. - (n_pos * fn) / (n_neg * tp)
-    rg[tn + fn == 0] = 1
-    return rg
-
-
-def precision_gain_point(tp, fn, fp, tn):
-    n_pos = tp + fn
-    n_neg = fp + tn
-    prec_gain = 1. - (n_pos * fp) / (n_neg * tp)
-    if tn + fn == 0:
+    if np.alen(prec_gain) > 1:
+        prec_gain[tn + fn == 0] = 0
+    elif tn + fn == 0:
         prec_gain = 0
     return prec_gain
 
 
-def recall_gain_point(tp, fn, fp, tn):
+def recall_gain(tp, fn, fp, tn):
+    """Calculates Recall Gain from the contingency table
+
+    This function calculates Recall Gain from the entries of the contingency
+    table: number of true positives (TP), false negatives (FN), false positives
+    (FP), and true negatives (TN). More information on Precision-Recall-Gain
+    curves and how to cite this work is available at
+    http://www.cs.bris.ac.uk/~flach/PRGcurves/.
+
+    Args:
+        tp (float) or ([float]): True Positives
+        fn (float) or ([float]): False Negatives
+        fp (float) or ([float]): False Positives
+        tn (float) or ([float]): True Negatives
+    Returns:
+        (float) or ([float])
+    """
     n_pos = tp + fn
     n_neg = fp + tn
     rg = 1. - (n_pos * fn) / (n_neg * tp)
-    if tn + fn == 0:
+    if np.alen(rg) > 1:
+        rg[tn + fn == 0] = 1
+    elif tn + fn == 0:
         rg = 1
     return rg
 
 
 def sort_scores(pos_scores, neg_scores):
-    to_sort = np.array([1.0-pos_scores, -neg_scores], dtype=[('x', '>f4'), ('y', '>f4')])
+    to_sort = np.array([1.0-pos_scores, -neg_scores])
     new_order = np.argsort(to_sort)[0]
     return new_order
 
@@ -106,7 +118,7 @@ def create_crossing_points(points, n_pos, n_neg):
 
         new_point = point_2 + alpha*delta
 
-        new_prec_gain = precision_gain_point(new_point[key_indices_1['TP']], new_point[key_indices_1['FN']],
+        new_prec_gain = precision_gain(new_point[key_indices_1['TP']], new_point[key_indices_1['FN']],
                                        new_point[key_indices_1['FP']], new_point[key_indices_1['TN']])
         points = insert_point(new_point, key_indices_1, points, precision_gain=new_prec_gain)
 
