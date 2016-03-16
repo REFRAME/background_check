@@ -139,7 +139,7 @@ def create_crossing_points(points, n_pos, n_neg):
             alpha = (n_neg / n_pos * points['TP'][i-1] - points['FP'][i-1]) / delta[key_indices_1['FP']]
 
         new_point = point_2 + alpha*delta
-        new_rec_gain = recall_gain_point(new_point[key_indices_1['TP']], new_point[key_indices_1['FN']],
+        new_rec_gain = recall_gain(new_point[key_indices_1['TP']], new_point[key_indices_1['FN']],
                                    new_point[key_indices_1['FP']], new_point[key_indices_1['TN']])
         points = insert_point(new_point, key_indices_1, points, recall_gain=new_rec_gain)
     return points
