@@ -68,7 +68,7 @@ class RGRPG:
             self.rocs[rg] = np.append(tpr.reshape(-1, 1), fpr.reshape(-1, 1), axis=1)
         self.rocs = even_out_roc_points(self.rocs)
 
-    def plot_rgrpg_2d(self):
+    def plot_rgrpg_2d(self, fig=None):
         """This method plots the 2d version of the RGPRG surface, with the recall-gains from the
         training data vs reject data classifier on the x-axis and the area under the corresponding roc curve of the real
         training data classifier, multiplied by the corresponding precision-gain from the
@@ -83,16 +83,17 @@ class RGRPG:
         """
         # Ignore warnings from matplotlib
         warnings.filterwarnings("ignore")
-        plt.scatter(self.recall_gains, self.areas*self.precision_gains)
-        plt.plot(self.recall_gains, self.areas*self.precision_gains)
-        plt.xlabel("$RG^1$")
-        plt.ylabel("$AUROC^2 * PG^1$")
-        axes = plt.gca()
-        axes.set_xlim([0.0, 1.0])
-        axes.set_ylim([0.0, 1.0])
+        if fig == None:
+            fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.plot(self.recall_gains, self.areas*self.precision_gains, 'bo-')
+        ax.set_xlabel("$RG^1$")
+        ax.set_ylabel("$AUROC^2 * PG^1$")
+        ax.set_xlim([0.0, 1.0])
+        ax.set_ylim([0.0, 1.0])
         plt.show()
 
-    def plot_rgrpg_3d(self):
+    def plot_rgrpg_3d(self, fig=None):
         """This method plots the 3d version of the RGPRG surface, with the recall-gains from the
         training data vs reject data classifier on the z-axis and the true positive and false positive rates of the
         corresponding ROC curve of the real training data classifier on y-axis and on the x-axis, respectively.
@@ -109,7 +110,8 @@ class RGRPG:
 
         # Ignore warnings from matplotlib
         warnings.filterwarnings("ignore")
-        fig = plt.figure()
+        if fig == None:
+            fig = plt.figure()
         ax = fig.gca(projection='3d')
 
         n_points = np.alen(self.rocs[0])
@@ -117,8 +119,8 @@ class RGRPG:
 
         for i, recall_gain in enumerate(self.recall_gains):
             roc = self.rocs[i]
-            ax.plot(roc[:, 1], roc[:, 0] * self.precision_gains[i], np.ones(np.alen(roc))*recall_gain, 'ko')
-            ax.plot(roc[:, 1], roc[:, 0] * self.precision_gains[i], np.ones(np.alen(roc))*recall_gain, 'k-')
+            ax.plot(roc[:, 1], roc[:, 0] * self.precision_gains[i],
+                    np.ones(np.alen(roc))*recall_gain, 'ko-')
 
             for point in np.arange(n_points):
                 crossing_lines[point, i, :] = np.array([roc[point, 1], roc[point, 0] * self.precision_gains[i], recall_gain])
