@@ -1,5 +1,6 @@
 import numpy as np
 from cwc.evaluation.rgrpg import RGRPG
+from cwc.evaluation.gaintp import GainTP
 
 
 if __name__ == "__main__":
@@ -10,7 +11,10 @@ if __name__ == "__main__":
     step1_training_scores = step1_scores[step1_labels == 1]
     training_labels = 1 * (predicted_labels_python[:, 5][step1_labels == 1] == 1)
     step2_training_scores = predicted_labels_python[:, 2][step1_labels == 1]
+    gaintp = GainTP(step1_reject_scores, step1_training_scores, step2_training_scores, training_labels)
+    # gaintp.plot()
+    print "Gaintp volume: " + str(gaintp.calculate_volume())
     rgrpg = RGRPG(step1_reject_scores, step1_training_scores, step2_training_scores, training_labels)
-    print rgrpg.calculate_volume()
+    print "RGRPG volume: " + str(rgrpg.calculate_volume())
     rgrpg.plot_rgrpg_2d()
-    rgrpg.plot_rgrpg_3d()
+    rgrpg.plot_rgrpg_3d(n_recalls=50, n_points_roc=50)
