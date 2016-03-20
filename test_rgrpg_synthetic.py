@@ -16,15 +16,13 @@ from cwc.evaluation.rgrpg import RGRPG
 def generate_data():
     samples = [500,         # Class 1
                200]         # Class 2
-    means = [[2,2,2],       # Class 1
-             [7,7,7]]       # Class 2
-    covs = [[[2,1,0],       # Class 1
-             [1,2,0],
-             [0,0,1]],
+    means = [[2,2],       # Class 1
+             [5,5]]       # Class 2
+    covs = [[[2,-1],       # Class 1
+             [-1,1]],
             [
-             [1,0,0],       # Class 2
-             [0,1,1],
-             [0,1,2]]]
+             [1,1],       # Class 2
+             [1,2]]]
 
     x, y = toy_examples.generate_gaussians(means=means, covs=covs,
                                            samples=samples)
@@ -36,11 +34,19 @@ def plot_data_and_reject(x,y,r):
 
     fig = plt.figure('data_reject')
     fig.clf()
-    ax = fig.add_subplot(111, projection='3d')
-    for k, c in enumerate(colors[:-1]):
-        index = (y == k)
-        ax.scatter(x[index,0], x[index,1], x[index,2], c=c)
-    ax.scatter(r[:,0], r[:,1], r[:,2], marker='x', c=colors[-1])
+    if np.shape(means)[1] >= 3:
+        ax = fig.add_subplot(111, projection='3d')
+        for k, c in enumerate(colors[:-1]):
+            index = (y == k)
+            ax.scatter(x[index,0], x[index,1], x[index,2], c=c)
+        ax.scatter(r[:,0], r[:,1], r[:,2], marker='x', c=colors[-1])
+    else:
+        ax = fig.add_subplot(111)
+        for k, c in enumerate(colors[:-1]):
+            index = (y == k)
+            ax.scatter(x[index,0], x[index,1], c=c)
+        ax.scatter(r[:,0], r[:,1], marker='x', c=colors[-1])
+
 
 
 def train_reject_model(x,r):
@@ -68,8 +74,8 @@ if __name__ == "__main__":
     x,y = generate_data()
     r = reject.create_reject_data(x, proportion=1, method='uniform_hsphere',
                                   pca=True, pca_variance=0.99, pca_components=0,
-                                  hshape_cov=0, hshape_prop_in=0.99,
-                                  hshape_multiplier=1.1)
+                                  hshape_cov=0, hshape_prop_in=0.97,
+                                  hshape_multiplier=1.2)
     plot_data_and_reject(x,y,r)
 
     # Classifier of reject data
