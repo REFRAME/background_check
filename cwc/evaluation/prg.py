@@ -1,6 +1,11 @@
 from __future__ import division
 import numpy as np
 
+def precision(tp, tn, fp, fn):
+    return tp/(tp + fp)
+
+def recall(tp, tn, fp, fn):
+    return tp/(tp + fn)
 
 def precision_gain(tp, fn, fp, tn):
     """Calculates Precision Gain from the contingency table
