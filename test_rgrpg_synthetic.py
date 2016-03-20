@@ -16,8 +16,8 @@ from cwc.evaluation.rgrpg import RGRPG
 def generate_data():
     samples = [500,         # Class 1
                200]         # Class 2
-    means = [[3,3,3],       # Class 1
-             [3,5,5]]       # Class 2
+    means = [[2,2,2],       # Class 1
+             [7,7,7]]       # Class 2
     covs = [[[2,1,0],       # Class 1
              [1,2,0],
              [0,0,1]],
@@ -60,16 +60,16 @@ def train_reject_model(x,r):
 
 def train_classifier_model(x,y):
     #model_clas = svm.SVC(probability=True)
-    model_clas = tree.DecisionTreeClassifier(max_depth=2)
+    model_clas = tree.DecisionTreeClassifier(max_depth=5)
     model_clas = model_clas.fit(x,y)
     return model_clas
 
 if __name__ == "__main__":
     x,y = generate_data()
     r = reject.create_reject_data(x, proportion=1, method='uniform_hsphere',
-                                  pca=True, pca_variance=0.9, pca_components=0,
+                                  pca=True, pca_variance=0.99, pca_components=0,
                                   hshape_cov=0, hshape_prop_in=0.99,
-                                  hshape_multiplier=2)
+                                  hshape_multiplier=1.1)
     plot_data_and_reject(x,y,r)
 
     # Classifier of reject data
