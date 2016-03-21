@@ -106,6 +106,43 @@ class RGP:
         axes.set_ylim([0.0, 1.0])
         plt.show()
 
+    def plot_negatives(self, fig=None):
+        """This method plots the RGP surface, with the recalls from the
+        first classifier on the x-axis and the gains of the second classifier,
+        multiplied by the corresponding precisions from the first classifier
+        on the y-axis.
+
+        Args:
+            fig (object): An object of a Matplotlib figure
+            (as obtained by using Matplotlib's figure() function).
+
+        Returns:
+            Nothing.
+
+        """
+        # Ignore warnings from matplotlib
+        warnings.filterwarnings("ignore")
+        if fig is None:
+            fig = plt.figure()
+
+        signs = np.ones(np.alen(self.precisions))
+        for i in np.arange(1, np.alen(self.precisions)):
+            if self.precisions[i] > self.precisions[i-1]:
+                signs[i] = 1
+            else:
+                signs[i] = -1
+
+        index = np.argmax(self.f_betas)
+        plt.plot(self.recalls, self.gains * self.precisions * signs, 'k.-')
+        plt.plot(self.recalls[index], self.gains[index] * self.precisions[index] * signs[index], 'ro')
+        plt.plot([0.0, 1.0], [0.0, 0.0], 'k--')
+        plt.xlabel("$Recall_1$")
+        plt.ylabel("$" + self.gain_type + "'_2$")
+        axes = plt.gca()
+        axes.set_xlim([0.0, 1.0])
+        axes.set_ylim([-1.0, 1.0])
+        plt.show()
+
     def get_optimal_step1_threshold(self):
         """This method returns the threshold with the highest f_beta on the RGP curve.
 
@@ -181,11 +218,9 @@ def calculate_f_betas(recalls, precisions, gains, pi=0.5, min_beta=0.5):
 
         2- The second classifier has the worst possible binary classification
         performance (accuracy_2 = pi, where pi is the proportion of positives) at recall_1 = 1:
-        Here, lower recalls might result in different subsets from the training data being
-        accepted and evaluated by the second classifier, possibly increasing accuracy_2,
-        while lower precisions will result in more reject instances being accepted,
-        decreasing accuracy_2. Clearly, precision and recall are equally important.
-        Therefore, beta should be chosen as 1.
+        Here, precision_1 and recall_1 are equally (un)important, since the second classifier
+        is the main responsible for the poor aggregated performance. Therefore, beta should be
+        chosen as 1, giving similar weights to recall_1 and precision_1.
 
         Args:
             recalls ([float]): Recalls of the first classifier.
