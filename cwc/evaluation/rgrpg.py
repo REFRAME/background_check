@@ -39,34 +39,39 @@ class RGRPG:
         recall_gains ([float]): The recall-gains calculated by thresholding over step1_scores and using step1_labels.
         precision_gains ([float]): The precision-gains calculated by thresholding over step1_scores
             and using step1_labels.
-        rocs (dict{[[float]]}): The ROC curves calculated by thresholding over step2_scores and using step2_labels.
+        step1_thresholds ([float]): Thresholds corresponding to the recall-gain and precision-gain values.
+        step2_rocs (dict{[[float]]}): The ROC curves calculated by thresholding over step2_scores and using step2_labels.
+        step2_thresholds (dict{[[float]]}): Thresholds used to build the ROC curves.
         areas ([float]): The areas of the roc curves calculated by thresholding over step2_scores and using
             step2_labels.
 
     """
     def __init__(self, step1_reject_scores, step1_training_scores, step2_training_scores, training_labels):
-        step1_scores = np.append(step1_training_scores, step1_reject_scores)
-        step1_labels = np.append(np.ones(np.alen(training_labels)), np.zeros(np.alen(step1_reject_scores)))
+        self.step1_scores = np.append(step1_training_scores, step1_reject_scores)
+        self.step1_labels = np.append(np.ones(np.alen(training_labels)), np.zeros(np.alen(step1_reject_scores)))
+        self.step2_scores = step2_training_scores
+        self.step2_labels = training_labels
 
-        prg_curve = calculate_prg_points(step1_labels, step1_scores)
+        prg_curve = calculate_prg_points(self.step1_labels, self.step1_scores)
         self.recall_gains = prg_curve['recall_gain'][prg_curve['recall_gain'] >= 0]
         self.precision_gains = prg_curve['precision_gain'][prg_curve['recall_gain'] >= 0]
-        pos_scores = prg_curve['pos_score'][prg_curve['recall_gain'] >= 0]
+        self.step1_thresholds = prg_curve['pos_score'][prg_curve['recall_gain'] >= 0]
 
         n_recalls = np.alen(self.recall_gains)
         self.areas = np.zeros(n_recalls)
 
-        self.rocs = dict()
+        self.step2_rocs = dict()
+        self.step2_thresholds = dict()
 
         for rg in np.arange(n_recalls):
-            true_positive_indices = np.where(np.logical_and(step1_scores >= pos_scores[rg], step1_labels == 1))[0]
+            true_positive_indices = np.where(np.logical_and(self.step1_scores >= self.step1_thresholds[rg],
+                                                            self.step1_labels == 1))[0]
             probabilities = step2_training_scores[true_positive_indices]
             labels = training_labels[true_positive_indices]
 
             self.areas[rg] = roc_auc_score(labels, probabilities)
-            fpr, tpr, thresholds = roc_curve(labels, probabilities)
-            self.rocs[rg] = np.append(tpr.reshape(-1, 1), fpr.reshape(-1, 1), axis=1)
-        self.rocs = even_out_roc_points(self.rocs)
+            fpr, tpr, self.step2_thresholds[rg] = roc_curve(labels, probabilities)
+            self.step2_rocs[rg] = np.append(tpr.reshape(-1, 1), fpr.reshape(-1, 1), axis=1)
 
     def plot_rgrpg_2d(self, fig=None):
         """This method plots the 2d version of the RGPRG surface, with the recall-gains from the
@@ -83,17 +88,17 @@ class RGRPG:
         """
         # Ignore warnings from matplotlib
         warnings.filterwarnings("ignore")
-        if fig == None:
+        if fig is None:
             fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.plot(self.recall_gains, self.areas*self.precision_gains, 'bo-')
+        ax.plot(self.recall_gains, self.areas*self.precision_gains, 'k.-')
         ax.set_xlabel("$RG^1$")
         ax.set_ylabel("$AUROC^2 * PG^1$")
         ax.set_xlim([0.0, 1.0])
         ax.set_ylim([0.0, 1.0])
         plt.show()
 
-    def plot_rgrpg_3d(self, fig=None):
+    def plot_rgrpg_3d(self, n_recalls=10, n_points_roc=10, fig=None):
         """This method plots the 3d version of the RGPRG surface, with the recall-gains from the
         training data vs reject data classifier on the z-axis and the true positive and false positive rates of the
         corresponding ROC curve of the real training data classifier on y-axis and on the x-axis, respectively.
@@ -107,28 +112,30 @@ class RGRPG:
             Nothing.
 
         """
-
-        # Ignore warnings from matplotlib
         warnings.filterwarnings("ignore")
-        if fig == None:
+        if fig is None:
             fig = plt.figure()
+
+        [x, y, z] = self.generate_grid(n_recalls=n_recalls, n_points_roc=n_points_roc)
+
         ax = fig.gca(projection='3d')
 
-        n_points = np.alen(self.rocs[0])
-        crossing_lines = np.zeros((n_points, np.alen(self.recall_gains), 3))
+        generated_recalls = np.unique(z)
+        crossing_lines = np.zeros((n_points_roc, n_recalls, 3))
 
-        for i, recall_gain in enumerate(self.recall_gains):
-            roc = self.rocs[i]
-            ax.plot(roc[:, 1], roc[:, 0] * self.precision_gains[i],
-                    np.ones(np.alen(roc))*recall_gain, 'ko-')
+        for i, recall_gain in enumerate(generated_recalls):
+            x_i = x[z == recall_gain]
+            y_i = y[z == recall_gain]
+            z_i = z[z == recall_gain]
+            ax.plot(x_i, y_i, z_i, 'k.-')
 
-            for point in np.arange(n_points):
-                crossing_lines[point, i, :] = np.array([roc[point, 1], roc[point, 0] * self.precision_gains[i], recall_gain])
+            for point in np.arange(n_points_roc):
+                crossing_lines[point, i, :] = np.array([x_i[point], y_i[point], z_i[point]])
 
-        for point in np.arange(n_points):
+        for point in np.arange(n_points_roc):
             crossing_line = crossing_lines[point]
             ax.plot(crossing_line[:, 0], crossing_line[:, 1], crossing_line[:, 2], 'k-')
-
+        ax.view_init(elev=10., azim=150)
         ax.set_xlabel('$FP_r^2$')
         ax.set_ylabel('$TP_r^2 * PG^1$')
         ax.set_zlabel('$RG^1$')
@@ -147,45 +154,61 @@ class RGRPG:
         """
         return auc(self.areas*self.precision_gains, self.recall_gains, reorder=True)
 
+    def generate_grid(self, n_recalls=10, n_points_roc=10):
+        [generated_recalls, generated_precisions, generated_thresholds] = \
+            uniform_curve(self.recall_gains, self.precision_gains, n_recalls, thresholds=self.step1_thresholds)
+        x = np.zeros(n_recalls*n_points_roc)
+        y = np.zeros(n_recalls*n_points_roc)
+        z = np.zeros(n_recalls*n_points_roc)
+        insert_point = 0
+        for i, threshold in enumerate(generated_thresholds):
+            true_positive_indices = np.where(np.logical_and(self.step1_scores >= threshold,
+                                                            self.step1_labels == 1))[0]
+            probabilities = self.step2_scores[true_positive_indices]
+            labels = self.step2_labels[true_positive_indices]
+            fpr, tpr, thresholds = roc_curve(labels, probabilities)
+            [fpr, tpr, thresholds] = uniform_curve(fpr, tpr, n_points_roc)
+            x[insert_point:insert_point + n_points_roc] = fpr
+            y[insert_point:insert_point + n_points_roc] = tpr * generated_precisions[i]
+            z[insert_point:insert_point + n_points_roc] = generated_recalls[i]
+            insert_point += n_points_roc
+        return [x, y, z]
 
-def even_out_roc_points(rocs):
-    """This function uses linear interpolation to generate more points for any roc curves with less points than
-    the others. This is done to allow for the surface plotting.
 
-    Args:
-        rocs (dict{[[float]]}): Roc curves from an RGPRG surface.
+def uniform_curve(x, y, n_points, thresholds=[]):
+    generated_x = np.linspace(0.0, 1.0, n_points)
+    generated_y = np.zeros(n_points)
+    generated_thresholds = np.zeros(n_points)
 
-    Returns:
-        rocs (dict{[[float]]}): The same ROC curves, now with the same number of points for all of them.
+    insert_point = 0
 
-    """
-    n_recall_gains = np.alen(rocs.keys())
-    # Create points for every ROC curve, so that it has the same number of points as the next curve.
-    # Start from the second to last curve, since the last one has the highest number of points, and go back to
-    # the first one.
-    for index in np.arange(n_recall_gains-2, -1, -1):
-        next_roc = rocs[index + 1]
-        max_points = np.alen(next_roc)
-        roc = np.copy(rocs[index])
-        n_points_roc = np.alen(roc)
-        if n_points_roc < max_points:
-            for point in np.arange(1, n_points_roc):
-                # Get two points from the roc curve.
-                point_1 = roc[point - 1, :]
-                point_2 = roc[point, :]
-                # Check how many points in the next curve have false positive rates between these two points.
-                n_points_interval = np.sum(np.logical_and(next_roc[:, 1] > point_1[1],
-                                                          next_roc[:, 1] < point_2[1]))
-                if (n_points_interval + n_points_roc) > max_points:
-                    n_points_interval = max_points - n_points_roc
-                if n_points_interval > 0:
-                    new_points = np.zeros((n_points_interval, 2))
-                    # Calculate the slope of the line connecting the two points.
-                    slope = (point_2[0] - point_1[0]) / (point_2[1] - point_1[1])
+    index_1 = 0
+    index_2 = 1
+    while insert_point < n_points:
+        x_1 = x[index_1]
+        x_2 = x[index_2]
+        y_1 = y[index_1]
+        y_2 = y[index_2]
 
-                    # Create n_points_interval uniformly between the two points
-                    new_points[:, 1] = np.linspace(point_1[1], point_2[1], n_points_interval + 2)[1:-1]
-                    new_points[:, 0] = slope * (new_points[:, 1] - point_1[1]) + point_1[0]
-                    # Insert the new points between the two selected points
-                    rocs[index] = np.insert(rocs[index], point, new_points, 0)
-    return rocs
+        points_interval = np.logical_and(generated_x >= x_1,
+                                         generated_x < x_2)
+        if index_2 == np.alen(x) - 1:
+            points_interval = np.logical_and(generated_x >= x_1,
+                                             generated_x <= x_2)
+        n_points_interval = np.sum(points_interval)
+        if n_points_interval > 0:
+            # Calculate the slope of the line connecting the two points.
+            slope = (y_2 - y_1) / (x_2 - x_1)
+            generated_y[insert_point:insert_point + n_points_interval] = \
+                slope * (generated_x[points_interval] - x_1) + y_1
+            if np.alen(thresholds) > 0:
+                threshold_1 = thresholds[index_1]
+                threshold_2 = thresholds[index_2]
+
+                new_thresholds = (threshold_2 - threshold_1) / \
+                                 (np.divide((x_2 - x_1), generated_x[points_interval]))
+                generated_thresholds[insert_point:insert_point + n_points_interval] = new_thresholds
+            insert_point = insert_point + n_points_interval
+            index_1 = index_2
+        index_2 += 1
+    return [generated_x, generated_y, generated_thresholds]
