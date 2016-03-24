@@ -77,12 +77,17 @@ class RGP:
         self.thresholds = self.thresholds[self.thresholds > -1.0]
         pi = np.sum(training_labels == 1) / np.alen(training_labels)
         self.f_betas = calculate_f_betas(self.recalls, self.precisions, self.gains, pi=pi, min_beta=0.5)
+        self.values = calculate_values(self.recalls, self.precisions, self.gains)
 
     def plot(self, fig=None):
         """This method plots the RGP surface, with the recalls from the
         first classifier on the x-axis and the gains of the second classifier,
         multiplied by the corresponding precisions from the first classifier
-        on the y-axis.
+        on the y-axis. The optimal threshold of the first classifier is shown
+        in two ways:
+
+        1- Red dot marks the optimal according to f-beta.
+        2- Blue dot marks the optimal according to optimization criterion.
 
         Args:
             fig (object): An object of a Matplotlib figure
@@ -96,51 +101,16 @@ class RGP:
         warnings.filterwarnings("ignore")
         if fig is None:
             fig = plt.figure()
-        index = np.argmax(self.f_betas)
         plt.plot(self.recalls, self.gains * self.precisions, 'k.-')
+        index = np.argmax(self.f_betas)
         plt.plot(self.recalls[index], self.gains[index] * self.precisions[index], 'ro')
+        index = np.argmax(self.values)
+        plt.plot(self.recalls[index], self.gains[index] * self.precisions[index], 'bo')
         plt.xlabel("$Recall_1$")
         plt.ylabel("$" + self.gain_type + "'_2$")
         axes = plt.gca()
         axes.set_xlim([0.0, 1.0])
         axes.set_ylim([0.0, 1.0])
-        plt.show()
-
-    def plot_negatives(self, fig=None):
-        """This method plots the RGP surface, with the recalls from the
-        first classifier on the x-axis and the gains of the second classifier,
-        multiplied by the corresponding precisions from the first classifier
-        on the y-axis.
-
-        Args:
-            fig (object): An object of a Matplotlib figure
-            (as obtained by using Matplotlib's figure() function).
-
-        Returns:
-            Nothing.
-
-        """
-        # Ignore warnings from matplotlib
-        warnings.filterwarnings("ignore")
-        if fig is None:
-            fig = plt.figure()
-
-        signs = np.ones(np.alen(self.precisions))
-        for i in np.arange(1, np.alen(self.precisions)):
-            if self.precisions[i] > self.precisions[i-1]:
-                signs[i] = 1
-            else:
-                signs[i] = -1
-
-        index = np.argmax(self.f_betas)
-        plt.plot(self.recalls, self.gains * self.precisions * signs, 'k.-')
-        plt.plot(self.recalls[index], self.gains[index] * self.precisions[index] * signs[index], 'ro')
-        plt.plot([0.0, 1.0], [0.0, 0.0], 'k--')
-        plt.xlabel("$Recall_1$")
-        plt.ylabel("$" + self.gain_type + "'_2$")
-        axes = plt.gca()
-        axes.set_xlim([0.0, 1.0])
-        axes.set_ylim([-1.0, 1.0])
         plt.show()
 
     def get_optimal_step1_threshold(self):
@@ -239,3 +209,22 @@ def calculate_f_betas(recalls, precisions, gains, pi=0.5, min_beta=0.5):
     f_betas = (1 + beta**2.0) * ((precisions * recalls) / (beta**2.0 * precisions + recalls))
     f_betas[np.isnan(f_betas)] = 0.0
     return f_betas
+
+
+def calculate_values(recalls, precisions, gains):
+    """This function calculates the optimization value corresponding
+     to each operating point of the aggregated classifiers.
+
+
+        Args:
+            recalls ([float]): Recalls of the first classifier.
+            precisions ([float]): Precisions of the first classifier.
+            gains ([float]): Gains of the second classifier.
+
+        Returns:
+            float: The calculated values.
+
+    """
+    values = gains * precisions - (np.abs(precisions - recalls) / (precisions+recalls))
+    values[np.isnan(values)] = np.amin(values[np.logical_not(np.isnan(values))]) - 1
+    return values
