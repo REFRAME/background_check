@@ -86,8 +86,8 @@ class RGP:
         on the y-axis. The optimal threshold of the first classifier is shown
         in two ways:
 
-        1- Red dot marks the optimal according to f-beta.
-        2- Blue dot marks the optimal according to optimization criterion.
+        1- Black circle marks the optimal according to f-beta.
+        2- Red dot marks the optimal according to optimization criterion.
 
         Args:
             fig (object): An object of a Matplotlib figure
@@ -103,14 +103,17 @@ class RGP:
             fig = plt.figure()
         plt.plot(self.recalls, self.gains * self.precisions, 'k.-')
         index = np.argmax(self.f_betas)
-        plt.plot(self.recalls[index], self.gains[index] * self.precisions[index], 'ro')
+        plt.scatter(self.recalls[index], self.gains[index] *
+                    self.precisions[index], s=300, c='w', marker='o')
         index = np.argmax(self.values)
-        plt.plot(self.recalls[index], self.gains[index] * self.precisions[index], 'bo')
+        plt.scatter(self.recalls[index], self.gains[index] *
+                    self.precisions[index], s=70, c='r', marker='o')
         plt.xlabel("$Recall_1$")
         plt.ylabel("$" + self.gain_type + "'_2$")
         axes = plt.gca()
         axes.set_xlim([0.0, 1.0])
         axes.set_ylim([0.0, 1.0])
+        plt.legend(['', 'opt. f-beta', 'opt. Telmo crit.'])
         plt.show()
 
     def get_optimal_step1_threshold(self):
