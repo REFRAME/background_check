@@ -205,7 +205,7 @@ def calculate_f_betas(recalls, precisions, gains, pi=0.5, min_beta=0.5):
     """
     warnings.filterwarnings("ignore")
     a = (1.0 - min_beta) / (pi - 1.0)
-    beta = a * gains[recalls == 1.0] + min_beta - a
+    beta = a * gains[np.argmax(recalls)] + min_beta - a
     f_betas = (1 + beta**2.0) * ((precisions * recalls) / (beta**2.0 * precisions + recalls))
     f_betas[np.isnan(f_betas)] = 0.0
     return f_betas
