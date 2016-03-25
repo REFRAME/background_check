@@ -3,7 +3,7 @@ import numpy as np
 
 from cwc.synthetic_data import reject
 from cwc.evaluation.rgp import RGP
-from cwc.evaluation.confidence_intervals import ConfidenceInterval
+from cwc.evaluation.confidence_intervals import ConfidenceIntervals
 
 from sklearn import datasets
 from sklearn.cross_validation import StratifiedKFold
@@ -102,22 +102,23 @@ def evaluate_test(test_data, test_labels, model_rej=None,
     n = np.alen(true_test_data)
     recall_1 = n_accepted_data / n
     accuracy_2 = (n_correct_positives + n_correct_negatives) / n
-    # return [recall_1, precision_1, accuracy_2]
-    print("recall_1 = {}, precision_1 = {}, accuracy_2 = {},"
-          " accuracy'_2 = {}".format(recall_1, precision_1, accuracy_2,
-                                     accuracy_2 * precision_1))
+    return [recall_1, precision_1, accuracy_2]
+    # print("recall_1 = {}, precision_1 = {}, accuracy_2 = {},"
+    #       " accuracy'_2 = {}".format(recall_1, precision_1, accuracy_2,
+    #                                  accuracy_2 * precision_1))
 
 if __name__ == "__main__":
     np.random.seed(1)
     x, y = load_dataset("iris")
-    n_folds = 10
+    n_folds = 5
     skf = StratifiedKFold(y, n_folds=n_folds)
     reject_class = 0
+    # accuracies of the second classifier when the first classifier is used
     recalls_1 = np.zeros(n_folds)
     precisions_1 = np.zeros(n_folds)
-    # accuracies of the second classifier when the first classifier is used
     accuracies_2 = np.zeros(n_folds)
     # accuracies of the second classifier without the first classifier
+    pr_1 = np.zeros(n_folds)
     acc_2 = np.zeros(n_folds)
     for test_fold in np.arange(n_folds):
         validation_fold = test_fold + 1
@@ -172,18 +173,22 @@ if __name__ == "__main__":
                   step2_threshold=0.5)
 
         print("Area = {}".format(rgp.calculate_area()))
-        fig = plt.figure('RGP')
-        fig.clf()
-        rgp.plot(fig)
+        # fig = plt.figure('RGP')
+        # fig.clf()
+        # rgp.plot(fig)
         step1_threshold = rgp.get_optimal_step1_threshold()
         print("Optimal threshold for the first classifier = {}".format(
             step1_threshold))
-        evaluate_test(
+        [recalls_1[test_fold], precisions_1[test_fold], accuracies_2[test_fold]] = \
+            evaluate_test(
             test_data, test_labels, model_rej=model_rej,
-                  model_clas=model_clas, step1_threshold=step1_threshold,
-                      step2_threshold=0.5, reject_class=reject_class)
-        evaluate_test(
+                model_clas=model_clas, step1_threshold=step1_threshold,
+                step2_threshold=0.5, reject_class=reject_class)
+        [re_1, pr_1[test_fold], acc_2[test_fold]] = evaluate_test(
             test_data, test_labels, model_rej=None,
-                  model_clas=model_clas, step1_threshold=0.5,
-                      step2_threshold=0.5, reject_class=reject_class)
-    # intervals = ConfidenceInterval()
+            model_clas=model_clas, step1_threshold=0.5,
+            step2_threshold=0.5, reject_class=reject_class)
+    values = np.append((accuracies_2*precisions_1).reshape(-1, 1),
+                       (acc_2*pr_1).reshape(-1, 1), 1)
+    intervals = ConfidenceIntervals(values, ['Protected', 'Original'], n_samples=10, alpha=0.05)
+    intervals.plot()

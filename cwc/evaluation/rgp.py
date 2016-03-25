@@ -203,7 +203,7 @@ def calculate_f_betas(recalls, precisions, gains, pi=0.5, min_beta=0.5):
             min_beta (float): Minimum value of beta.
 
         Returns:
-            float: The calculated f_betas.
+            [float]: The calculated f_betas.
 
     """
     warnings.filterwarnings("ignore")
@@ -225,7 +225,7 @@ def calculate_values(recalls, precisions, gains):
             gains ([float]): Gains of the second classifier.
 
         Returns:
-            float: The calculated values.
+            [float]: The calculated values.
 
     """
     values = gains * precisions - (np.abs(precisions - recalls) / (precisions+recalls))
