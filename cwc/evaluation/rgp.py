@@ -37,24 +37,28 @@ class RGP:
     Attributes:
         thresholds ([float]): Thresholds corresponding to the recall and precision values.
         recalls ([float]): Recalls of the first classifier, calculated by thresholding over
-        step1_reject_scores and step1_training_scores.
+            step1_reject_scores and step1_training_scores.
         precisions ([float]): Precisions of the first classifier, calculated by thresholding
-        over step1_reject_scores and step1_training_scores.
+            over step1_reject_scores and step1_training_scores.
         gains ([float]): Gain values of the second classifier, calculated using the true
-        training instances accepted by the first classifier at the various recall thresholds.
+            training instances accepted by the first classifier at the various recall thresholds.
         gain_type (str): Which type of gain is used to evaluate the second classifier.
+        positive_proportion (float): the proportion of positives (true training data)
+            scored by the first classifier.
 
     """
     def __init__(self, step1_reject_scores, step1_training_scores, step2_training_scores,
                  training_labels, gain="accuracy", step2_threshold=0.5):
 
-        pos_scores = np.append(np.inf, np.unique(np.append(step1_training_scores, step1_reject_scores))[::-1])
+        pos_scores = np.append(np.inf, np.unique(np.append(
+            step1_training_scores, step1_reject_scores))[::-1])
         self.thresholds = np.ones(np.alen(pos_scores)) * -1.0
         self.recalls = np.zeros(np.alen(pos_scores))
         self.precisions = np.zeros(np.alen(pos_scores))
         self.gains = np.zeros(np.alen(pos_scores))
         self.gain_type = gain
-
+        self.positive_proportion = np.alen(step1_training_scores)/\
+            (np.alen(step1_training_scores) + np.alen(step1_reject_scores))
         for i, threshold in enumerate(pos_scores):
             n_accepted_rejects = np.sum(step1_reject_scores >= threshold)
             accepted_training = step1_training_scores >= threshold
@@ -79,7 +83,7 @@ class RGP:
         self.f_betas = calculate_f_betas(self.recalls, self.precisions, self.gains, pi=pi, min_beta=0.5)
         self.values = calculate_values(self.recalls, self.precisions, self.gains)
 
-    def plot(self, fig=None):
+    def plot(self, fig=None, baseline=True):
         """This method plots the RGP surface, with the recalls from the
         first classifier on the x-axis and the gains of the second classifier,
         multiplied by the corresponding precisions from the first classifier
@@ -91,8 +95,10 @@ class RGP:
 
         Args:
             fig (object): An object of a Matplotlib figure
-            (as obtained by using Matplotlib's figure() function).
-
+                (as obtained by using Matplotlib's figure() function).
+            baseline (bool): True means that the baseline will be drawn.
+                The baseline is built by taking the worst precision
+                (proportion of positives) for every recall value.
         Returns:
             Nothing.
 
@@ -102,6 +108,7 @@ class RGP:
         if fig is None:
             fig = plt.figure()
         plt.plot(self.recalls, self.gains * self.precisions, 'k.-')
+        plt.plot(self.recalls, self.gains * self.positive_proportion, 'k--')
         index = np.argmax(self.f_betas)
         plt.scatter(self.recalls[index], self.gains[index] *
                     self.precisions[index], s=300, c='w', marker='o')
@@ -113,7 +120,7 @@ class RGP:
         axes = plt.gca()
         axes.set_xlim([0.0, 1.0])
         axes.set_ylim([0.0, 1.0])
-        plt.legend(['', 'opt. f-beta', 'opt. Telmo crit.'])
+        plt.legend(['RGP curve', 'Baseline', 'opt. f-beta', 'opt. Telmo crit.'])
         plt.show()
 
     def get_optimal_step1_threshold(self):

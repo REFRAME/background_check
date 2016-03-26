@@ -173,9 +173,9 @@ if __name__ == "__main__":
                   step2_threshold=0.5)
 
         print("Area = {}".format(rgp.calculate_area()))
-        # fig = plt.figure('RGP')
-        # fig.clf()
-        # rgp.plot(fig)
+        fig = plt.figure('RGP')
+        fig.clf()
+        rgp.plot(fig)
         step1_threshold = rgp.get_optimal_step1_threshold()
         print("Optimal threshold for the first classifier = {}".format(
             step1_threshold))
