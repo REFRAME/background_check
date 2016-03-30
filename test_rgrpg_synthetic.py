@@ -1,9 +1,12 @@
 from __future__ import division
 
 import numpy as np
+np.random.seed(42)
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
-# plt.ion()
+plt.ion()
+plt.rcParams['figure.figsize'] = (5,4)
+plt.rcParams['figure.autolayout'] = True
 
 from sklearn.mixture import GMM
 from sklearn import svm
@@ -87,7 +90,7 @@ def train_classifier_model(x,y):
     return model_clas
 
 if __name__ == "__main__":
-    x, y = generate_data(d3=True)
+    x, y = generate_data(d3=False)
     r = reject.create_reject_data(x, proportion=1, method='uniform_hsphere',
                                   pca=True, pca_variance=0.99, pca_components=0,
                                   hshape_cov=0, hshape_prop_in=0.97,
