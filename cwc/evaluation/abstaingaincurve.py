@@ -5,8 +5,8 @@ from sklearn.metrics import auc
 import warnings
 
 
-class RGP:
-    """This class represents a Recall_1-Gain_2-Precision_1 (RGP) curve. An object of class RGP is built based
+class AbstainGainCurve:
+    """This class represents an Abstain-gain (AG) curve. An object of class AbstainGainCurve is built based
     on the result of two models:
 
     1- The first one is a training data vs reject data classifier and its recall and precision values at
@@ -79,9 +79,16 @@ class RGP:
         self.gains = self.gains[self.thresholds > -1.0]
         self.precisions = self.precisions[self.thresholds > -1.0]
         self.thresholds = self.thresholds[self.thresholds > -1.0]
-        pi = np.sum(training_labels == 1) / np.alen(training_labels)
-        self.f_betas = calculate_f_betas(self.recalls, self.precisions, self.gains, pi=pi, min_beta=0.5)
-        self.values = calculate_values(self.recalls, self.precisions, self.gains)
+        [recalls_ag, mod_gains_ag] = calculate_abstain_gains(
+            self.recalls,
+            self.precisions,
+            self.gains,
+            self.positive_proportion)
+        self.mod_gains_ag = mod_gains_ag[recalls_ag >= 0]
+        self.recalls_ag = recalls_ag[recalls_ag >= 0]
+        # pi = np.sum(training_labels == 1) / np.alen(training_labels)
+        # self.f_betas = calculate_f_betas(self.recalls, self.precisions, self.gains, pi=pi, min_beta=0.5)
+        # self.values = calculate_values(self.recalls, self.precisions, self.gains)
 
     def plot(self, fig=None, baseline=True):
         """This method plots the RGP surface, with the recalls from the
@@ -107,16 +114,9 @@ class RGP:
         warnings.filterwarnings("ignore")
         if fig is None:
             fig = plt.figure()
-        plt.plot(self.recalls, self.gains * self.precisions, 'k.-')
-        # plt.plot(self.recalls, self.gains * self.positive_proportion, 'k--')
-        # index = np.argmax(self.f_betas)
-        # plt.scatter(self.recalls[index], self.gains[index] *
-        #             self.precisions[index], s=300, c='w', marker='o')
-        # index = np.argmax(self.values)
-        # plt.scatter(self.recalls[index], self.gains[index] *
-        #             self.precisions[index], s=70, c='r', marker='o')
-        plt.xlabel("$r_1$")
-        plt.ylabel("$acc'_2$")
+        plt.plot(self.recalls_ag, self.mod_gains_ag, 'k.-')
+        plt.xlabel("$Recall-AG_1$")
+        plt.ylabel("$acc-AG_2$")
         axes = plt.gca()
         axes.set_xlim([0.0, 1.01])
         axes.set_ylim([0.0, 1.0])
@@ -124,20 +124,7 @@ class RGP:
         axes.spines['right'].set_visible(False)
         axes.get_xaxis().tick_bottom()
         axes.get_yaxis().tick_left()
-        # plt.legend(['RGP curve', 'Baseline'])  # , 'opt. f-beta', 'opt. Telmo crit.'])
         plt.show()
-
-    def get_optimal_step1_threshold(self):
-        """This method returns the threshold with the highest f_beta on the RGP curve.
-
-        Args:
-            None.
-
-        Returns:
-            float: The threshold with the highest f_beta on the RGP curve.
-
-        """
-        return self.thresholds[np.argmax(self.f_betas)]
 
     def calculate_area(self):
         """This method calculates the area under the RGP curve,
@@ -151,7 +138,7 @@ class RGP:
             float: The volume under the Recall-gain-ROC-Precision-gain surface.
 
         """
-        return auc(self.recalls, self.gains*self.precisions, reorder=True)
+        return auc(self.recalls_ag, self.mod_gains_ag, reorder=True)
 
 
 def calculate_gain(accepted_scores, accepted_labels, gain="accuracy", threshold=0.5):
@@ -185,47 +172,7 @@ def calculate_gain(accepted_scores, accepted_labels, gain="accuracy", threshold=
             return n_correct_instances / np.alen(accepted_labels)
 
 
-def calculate_f_betas(recalls, precisions, gains, pi=0.5, min_beta=0.5):
-    """This function calculates f-beta values based on the given recall and precision values.
-        The beta value is taken based on the gain_2 value corresponding to recall_1 = 1,
-        where gain_2 is the gain value of the second classifier and recall_1 is the
-        recall value of the first classifier. At recall_1 = 1, the first classifier accepts
-        all true training data. If gain_2 is the second classifier's accuracy, we have 2
-        extreme scenarios:
-
-        1- The second classifier has accuracy_2 = 1.0 at recall_1 = 1: this means that the
-        second classifier is perfectly accurate on the complete training data set. Therefore,
-        it is also perfect with any subset of the true training data that gets accepted by the
-        first classifier. Thus, recall_1 is not very important and only precision_1 is able
-        to impact the performance of the second classifier. In this scenario, beta should be
-        chosen as min_beta, since lower beta values give more weight to precision.
-
-        2- The second classifier has the worst possible binary classification
-        performance (accuracy_2 = pi, where pi is the proportion of positives) at recall_1 = 1:
-        Here, precision_1 and recall_1 are equally (un)important, since the second classifier
-        is the main responsible for the poor aggregated performance. Therefore, beta should be
-        chosen as 1, giving similar weights to recall_1 and precision_1.
-
-        Args:
-            recalls ([float]): Recalls of the first classifier.
-            precisions ([float]): Precisions of the first classifier.
-            gains ([float]): Gains of the second classifier.
-            pi (float): Proportion of positives in the true training data.
-            min_beta (float): Minimum value of beta.
-
-        Returns:
-            [float]: The calculated f_betas.
-
-    """
-    warnings.filterwarnings("ignore")
-    a = (1.0 - min_beta) / (pi - 1.0)
-    beta = a * gains[np.argmax(recalls)] + min_beta - a
-    f_betas = (1 + beta**2.0) * ((precisions * recalls) / (beta**2.0 * precisions + recalls))
-    f_betas[np.isnan(f_betas)] = 0.0
-    return f_betas
-
-
-def calculate_values(recalls, precisions, gains):
+def calculate_abstain_gains(recalls, precisions, gains, pi):
     """This function calculates the optimization value corresponding
      to each operating point of the aggregated classifiers.
 
@@ -239,6 +186,21 @@ def calculate_values(recalls, precisions, gains):
             [float]: The calculated values.
 
     """
-    values = gains * precisions - (np.abs(precisions - recalls) / (precisions+recalls))
-    values[np.isnan(values)] = np.amin(values[np.logical_not(np.isnan(values))]) - 1
-    return values
+    g = gains[np.argmax(recalls)]
+    mod_gains_ag = (gains*precisions - g*pi) / ((1.0 - g*pi) * gains*precisions)
+    recalls_ag = (recalls - g*pi) / ((1.0 - g*pi) * recalls)
+
+    non_negative_indices = np.where(recalls_ag >= 0)[0]
+    j = np.amin(non_negative_indices)
+    if recalls_ag[j] > 0:
+        slope = (mod_gains_ag[j] - mod_gains_ag[j-1]) / (recalls_ag[j] -
+                                                         recalls_ag[j-1])
+        new_mod_gain_ag = -recalls_ag[j-1]*slope + mod_gains_ag[j-1]
+        recalls_ag = np.insert(recalls_ag, j, 0)
+        mod_gains_ag = np.insert(mod_gains_ag, j, new_mod_gain_ag)
+
+    min_mod_gain_ag = np.amin(mod_gains_ag[non_negative_indices])
+    if min_mod_gain_ag > 0:
+        recalls_ag = np.append(recalls_ag, 1)
+        mod_gains_ag = np.append(mod_gains_ag, 0)
+    return [recalls_ag, mod_gains_ag]

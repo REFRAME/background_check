@@ -1,5 +1,5 @@
 import numpy as np
-from cwc.evaluation.rgrpg import RGRPG
+from cwc.evaluation.abstaingaincurve import AbstainGainCurve
 from cwc.evaluation.rgp import RGP
 
 
@@ -13,8 +13,12 @@ if __name__ == "__main__":
     step2_training_scores = predicted_labels_python[:, 2][step1_labels == 1]
     rgp = RGP(step1_reject_scores, step1_training_scores, step2_training_scores, training_labels)
     rgp.plot()
-    print "Gaintp area: " + str(rgp.calculate_area())
+    # print "Gaintp area: " + str(rgp.calculate_area())
     # rgrpg = RGRPG(step1_reject_scores, step1_training_scores, step2_training_scores, training_labels)
     # print "RGRPG volume: " + str(rgrpg.calculate_volume())
     # rgrpg.plot_rgrpg_2d()
     # rgrpg.plot_rgrpg_3d(n_recalls=50, n_points_roc=50)
+
+    ag = AbstainGainCurve(step1_reject_scores, step1_training_scores, step2_training_scores, training_labels)
+    ag.plot()
+    # print "Abstain-gain area: " + str(ag.calculate_area())

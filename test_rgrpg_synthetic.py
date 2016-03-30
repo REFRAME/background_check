@@ -13,7 +13,7 @@ from cwc.synthetic_data import toy_examples
 from cwc.synthetic_data import reject
 from cwc.evaluation.rgrpg import RGRPG
 from cwc.evaluation.rgp import RGP
-
+from cwc.evaluation.abstaingaincurve import AbstainGainCurve
 
 def generate_data(d3=False):
     if d3:
@@ -147,4 +147,13 @@ if __name__ == "__main__":
     fig = plt.figure('RGP')
     fig.clf()
     rgp.plot(fig)
+
+    ag = AbstainGainCurve(step1_reject_scores, step1_training_scores,
+              step2_training_scores, training_labels)
+
+    print("Area = {}".format(ag.calculate_area()))
+    fig = plt.figure('AG')
+    fig.clf()
+    ag.plot(fig)
+
     print("Optimal threshold for the first classifier = {}".format(rgp.get_optimal_step1_threshold()))
