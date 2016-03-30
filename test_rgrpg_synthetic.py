@@ -18,9 +18,10 @@ from cwc.evaluation.rgrpg import RGRPG
 from cwc.evaluation.rgp import RGP
 from cwc.evaluation.abstaingaincurve import AbstainGainCurve
 
-def generate_data(d3=False):
-    if d3:
-        samples = [500,         # Class 1
+# FIXME change the holes for optional arguments
+def generate_data(dim=3, holes=None):
+    if dim == 3:
+        samples = [600,         # Class 1
                    400]         # Class 2
         means = [[2,2,2],       # Class 1
                  [3,3,4]]       # Class 2
@@ -31,9 +32,9 @@ def generate_data(d3=False):
                  [1,1,0],       # Class 2
                  [1,2,0],
                  [0,0,1]]]
-    else:
-        samples = [500,         # Class 1
-                   200]         # Class 2
+    elif dim == 2:
+        samples = [600,         # Class 1
+                   400]         # Class 2
         means = [[2,2],       # Class 1
                  [5,5]]       # Class 2
         covs = [[[2,-1],       # Class 1
@@ -41,9 +42,16 @@ def generate_data(d3=False):
                 [
                  [1,1],       # Class 2
                  [1,2]]]
+    elif dim == 1:
+        samples = [600,         # Class 1
+                   400]         # Class 2
+        means = [[2],       # Class 1
+                 [5]]       # Class 2
+        covs = [[[2]],       # Class 1
+                [[1]]]       # Class 2
 
     x, y = toy_examples.generate_gaussians(means=means, covs=covs,
-                                           samples=samples)
+                                           samples=samples, holes=holes)
     return x, y
 
 
@@ -59,12 +67,19 @@ def plot_data_and_reject(x, y, r):
             index = (y == k)
             ax.scatter(x[index,0], x[index,1], x[index,2], c=c)
         ax.scatter(r[:,0], r[:,1], r[:,2], marker='x', c=colors[-1])
-    else:
+    elif x.shape[1] == 2:
         ax = fig.add_subplot(111)
         for k, c in enumerate(colors[:-1]):
             index = (y == k)
             ax.scatter(x[index,0], x[index,1], c=c)
         ax.scatter(r[:,0], r[:,1], marker='x', c=colors[-1])
+    elif x.shape[1] == 1:
+        ax = fig.add_subplot(111)
+        for k, c in enumerate(colors[:-1]):
+            index = (y == k)
+            ax.hist(x[index,0])
+        ax.hist(r[:,0])
+
 
 
 def train_reject_model(x, r):
@@ -90,7 +105,7 @@ def train_classifier_model(x,y):
     return model_clas
 
 if __name__ == "__main__":
-    x, y = generate_data(d3=False)
+    x, y = generate_data(dim=2, holes=[1,2])
     r = reject.create_reject_data(x, proportion=1, method='uniform_hsphere',
                                   pca=True, pca_variance=0.99, pca_components=0,
                                   hshape_cov=0, hshape_prop_in=0.97,

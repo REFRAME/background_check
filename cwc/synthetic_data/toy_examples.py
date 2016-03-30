@@ -3,7 +3,8 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
 
-def generate_gaussians(means=[[0,0]], covs=[[[1,0],[0,1]]], samples=[1]):
+def generate_gaussians(means=[[0,0]], covs=[[[1,0],[0,1]]], samples=[1],
+                       holes=[0,0]):
     """This function generates N Gaussian distributions with the specified
         mean, covariance and number of samples per Gaussian.
 
@@ -18,14 +19,43 @@ def generate_gaussians(means=[[0,0]], covs=[[[1,0],[0,1]]], samples=[1]):
         Y ([int]): A vector of size sum(samples) indicating the Gaussian
             distribution where every X belongs.
     """
+    num_classes = len(samples)
+    if sum(holes) > 0:
+      if len(holes) != num_classes:
+        raise Exception('The number of holes needs to be the same as the'
+                        'number of classes')
+    else:
+      holes = numpy.zeros(num_classes)
+
     X = numpy.empty(shape=(sum(samples),numpy.shape(means)[1]))
     Y = numpy.empty(shape=(sum(samples)))
     cumsum = 0
-    for i in range(len(means)):
+    for i in range(num_classes):
         new_cumsum = cumsum + samples[i]
-        X[cumsum:new_cumsum] = numpy.random.multivariate_normal(
-                                means[i], covs[i], size=(samples[i]))
         Y[cumsum:new_cumsum] = i
+        if holes[i] != 0:
+          print('Class {} has a hole of size = {}'.format(i, holes[i]))
+          loop = True
+          hole_origin = numpy.random.multivariate_normal(
+                                    means[i], covs[i], size=(1))
+          valid_samples = 0
+          cumsum_partial = cumsum
+          new_cumsum_partial = cumsum
+          while new_cumsum_partial < new_cumsum:
+            x_samples = numpy.random.multivariate_normal(
+                                    means[i], covs[i], size=(samples[i]))
+            x_samples = x_samples[numpy.sum((x_samples-hole_origin)**2,
+              axis=1)**(1./2) > holes[i]]
+
+            if (len(x_samples) + cumsum_partial) > new_cumsum:
+              x_samples = x_samples[:new_cumsum - cumsum_partial]
+            new_cumsum_partial = cumsum_partial + len(x_samples)
+            X[cumsum_partial:new_cumsum_partial] = x_samples
+            cumsum_partial = new_cumsum_partial
+        else:
+          X[cumsum:new_cumsum] = numpy.random.multivariate_normal(
+                                   means[i], covs[i], size=(samples[i]))
+
         cumsum = new_cumsum
 
     rand_indices = numpy.random.permutation(range(cumsum))
