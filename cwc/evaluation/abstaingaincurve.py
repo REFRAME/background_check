@@ -67,8 +67,15 @@ class AbstainGainCurve:
         self.precisions = np.zeros(np.alen(pos_scores))
         self.gains = np.zeros(np.alen(pos_scores))
         self.gain_type = gain
-        self.positive_proportion = np.alen(step1_training_scores)/\
-            (np.alen(step1_training_scores) + np.alen(step1_reject_scores))
+        self.positive_proportion = np.alen(step1_training_scores) / (np.alen(
+            step1_training_scores) + np.alen(step1_reject_scores))
+        self.mod_gains_ag = np.zeros(np.alen(pos_scores))
+        self.recalls_ag = np.zeros(np.alen(pos_scores))
+        all_accepted_training = np.zeros((np.alen(pos_scores),  np.alen(
+            training_labels)))
+        g = calculate_gain(step2_training_scores, training_labels, gain=gain,
+                           threshold=step2_threshold)
+
         for i, threshold in enumerate(pos_scores):
             n_accepted_rejects = np.sum(step1_reject_scores >= threshold)
             accepted_training = step1_training_scores >= threshold
@@ -77,6 +84,7 @@ class AbstainGainCurve:
             if i == 0 or new_recall != self.recalls[i-1]:
                 self.thresholds[i] = threshold
                 self.recalls[i] = new_recall
+                all_accepted_training[i] = accepted_training
                 if (np.sum(accepted_training) + n_accepted_rejects) == 0.0:
                     self.precisions[i] = np.nan
                 else:
@@ -87,22 +95,32 @@ class AbstainGainCurve:
                 self.gains[i] = calculate_gain(accepted_scores, accepted_labels,
                                                gain=gain,
                                                threshold=step2_threshold)
+
+                denominator = (1.0 - g * self.positive_proportion)
+                self.mod_gains_ag[i] = (self.gains[i]*self.precisions[i] -
+                                     g*self.positive_proportion) / denominator
+                self.recalls_ag[i] = (self.recalls[i] -
+                                   g*self.positive_proportion) / denominator
         self.recalls = self.recalls[self.thresholds > -1.0]
         self.gains = self.gains[self.thresholds > -1.0]
         self.precisions = self.precisions[self.thresholds > -1.0]
+        self.mod_gains_ag = self.mod_gains_ag[self.thresholds > -1.0]
+        self.recalls_ag = self.recalls_ag[self.thresholds > -1.0]
+        all_accepted_training = all_accepted_training[self.thresholds > -1.0]
         self.thresholds = self.thresholds[self.thresholds > -1.0]
-        [recalls_ag, mod_gains_ag] = calculate_abstain_gains(
-            self.recalls,
-            self.precisions,
-            self.gains,
-            self.positive_proportion)
-        self.mod_gains_ag = mod_gains_ag[recalls_ag >= 0]
-        self.recalls_ag = recalls_ag[recalls_ag >= 0]
-        # pi = np.sum(training_labels == 1) / np.alen(training_labels)
-        # self.f_betas = calculate_f_betas(self.recalls, self.precisions,
-        # self.gains, pi=pi, min_beta=0.5)
-        # self.values = calculate_values(self.recalls, self.precisions, 
-        # self.gains)
+        [self.recalls_ag, self.mod_gains_ag] = generate_crossing_points(
+            all_accepted_training.astype(bool),
+                                 step1_reject_scores, step1_training_scores,
+                                 step2_training_scores,
+                                 training_labels, self.recalls_ag,
+                                 self.mod_gains_ag,
+                                 g * self.positive_proportion,
+                                 gain=self.gain_type,
+                                 threshold=step2_threshold)
+
+
+        self.mod_gains_ag = self.mod_gains_ag[self.recalls_ag >= 0]
+        self.recalls_ag = self.recalls_ag[self.recalls_ag >= 0]
 
     def plot(self, fig=None, baseline=True):
         """This method plots the RGP surface, with the recalls from the
@@ -190,38 +208,39 @@ def calculate_gain(accepted_scores, accepted_labels, gain="accuracy",
             return n_correct_instances / np.alen(accepted_labels)
 
 
-def calculate_abstain_gains(recalls, precisions, gains, pi):
-    """This function calculates the optimization value corresponding
-     to each operating point of the aggregated classifiers.
+def generate_crossing_points(all_accepted_training, step1_reject_scores,
+                             step1_training_scores, step2_training_scores,
+                             training_labels,
+                             recalls_ag, mod_gains_ag,
+                             baseline, gain="accuracy", threshold=0.5):
 
+    non_negative_indices = np.where(recalls_ag >= 0)[0]
 
-        Args:
-            recalls ([float]): Recalls of the first classifier.
-            precisions ([float]): Precisions of the first classifier.
-            gains ([float]): Gains of the second classifier.
+    j = np.amin(non_negative_indices)
+    if recalls_ag[j] > 0:
+        rag = recalls_ag[j]
+        true_positives = all_accepted_training[j]
+        while rag > 0:
+            min_accepted_score = np.amin(step1_training_scores[true_positives])
+            index = np.random.choice(np.where(step1_training_scores ==
+                                     min_accepted_score)[0], 1)
+            true_positives[index] = False
+            new_recall = np.sum(true_positives) / np.alen(training_labels)
+            rag = (new_recall - baseline) / (1.0 - baseline)
+            accepted_rejects = step1_reject_scores >= min_accepted_score
+            new_precision = np.sum(true_positives) / (
+                np.sum(true_positives) + np.sum(accepted_rejects))
+        new_gain = calculate_gain(step2_training_scores[true_positives],
+                                  training_labels[true_positives],
+                                               gain=gain,
+                                               threshold=threshold)
+        new_mod_gain_ag = (new_gain * new_precision - baseline) / (1 - baseline)
+        recalls_ag = np.insert(recalls_ag, j, 0)
+        mod_gains_ag = np.insert(mod_gains_ag, j, new_mod_gain_ag)
 
-        Returns:
-            [float]: The calculated values.
-
-    """
-    g = gains[np.argmax(recalls)]
-    mod_gains_ag = (gains*precisions - g*pi) / (1.0 - g*pi)
-    recalls_ag = (recalls - g*pi) / (1.0 - g*pi)
-
-
-
-
-    # non_negative_indices = np.where(recalls_ag >= 0)[0]
-    # j = np.amin(non_negative_indices)
-    # if recalls_ag[j] > 0:
-    #     slope = (mod_gains_ag[j] - mod_gains_ag[j-1]) / (recalls_ag[j] -
-    #                                                      recalls_ag[j-1])
-    #     new_mod_gain_ag = -recalls_ag[j-1]*slope + mod_gains_ag[j-1]
-    #     recalls_ag = np.insert(recalls_ag, j, 0)
-    #     mod_gains_ag = np.insert(mod_gains_ag, j, new_mod_gain_ag)
-    #
-    # min_mod_gain_ag = np.amin(mod_gains_ag[non_negative_indices])
-    # if min_mod_gain_ag > 0:
-    #     recalls_ag = np.append(recalls_ag, 1)
-    #     mod_gains_ag = np.append(mod_gains_ag, 0)
+    # Add final point in the right-hand side of the curve
+    min_mod_gain_ag = np.amin(mod_gains_ag[non_negative_indices])
+    if min_mod_gain_ag > 0:
+        recalls_ag = np.append(recalls_ag, 1)
+        mod_gains_ag = np.append(mod_gains_ag, 0)
     return [recalls_ag, mod_gains_ag]
