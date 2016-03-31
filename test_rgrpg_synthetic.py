@@ -5,7 +5,7 @@ np.random.seed(42)
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 plt.ion()
-plt.rcParams['figure.figsize'] = (5,4)
+plt.rcParams['figure.figsize'] = (4,3)
 plt.rcParams['figure.autolayout'] = True
 
 from sklearn.mixture import GMM
@@ -33,14 +33,17 @@ def generate_data(dim=3, holes=None):
                  [1,2,0],
                  [0,0,1]]]
     elif dim == 2:
-        samples = [600,         # Class 1
-                   400]         # Class 2
-        means = [[2,2],       # Class 1
-                 [5,5]]       # Class 2
-        covs = [[[2,-1],       # Class 1
-                 [-1,1]],
-                [
-                 [1,1],       # Class 2
+        samples = [200,         # Class 1
+                   200,         # Class 2
+                   200]         # Class 2
+        means = [[0,0],       # Class 1
+                 [0,-10],       # Class 2
+                 [7,4]]       # Class 2
+        covs = [[[3,-1],       # Class 1
+                 [-1,2]],
+                [[3,0],       # Class 2
+                 [0,3]],
+                [[2,1],       # Class 2
                  [1,2]]]
     elif dim == 1:
         samples = [600,         # Class 1
@@ -55,31 +58,31 @@ def generate_data(dim=3, holes=None):
     return x, y
 
 
-def plot_data_and_reject(x, y, r):
+def plot_data_and_reject(x, y, r, fig=None):
     # Options for plotting
-    colors = ['r', 'b', 'y']    # One color per class + reject
+    colors = ['#7777CC', '#FFFF99', '#99FFFF', '#CCCCCC']    # One color per class + reject
+    shapes = ['o', 's', '^', '+']
 
-    fig = plt.figure('data_reject')
-    fig.clf()
+    if fig == None:
+        fig = plt.figure('data reject')
     if x.shape[1] >= 3:
         ax = fig.add_subplot(111, projection='3d')
         for k, c in enumerate(colors[:-1]):
             index = (y == k)
-            ax.scatter(x[index,0], x[index,1], x[index,2], c=c)
-        ax.scatter(r[:,0], r[:,1], r[:,2], marker='x', c=colors[-1])
+            ax.scatter(x[index,0], x[index,1], x[index,2], marker=shapes[k], c=c)
+        ax.scatter(r[:,0], r[:,1], r[:,2], marker=shapes[-1], c=colors[-1])
     elif x.shape[1] == 2:
         ax = fig.add_subplot(111)
         for k, c in enumerate(colors[:-1]):
             index = (y == k)
-            ax.scatter(x[index,0], x[index,1], c=c)
-        ax.scatter(r[:,0], r[:,1], marker='x', c=colors[-1])
+            ax.scatter(x[index,0], x[index,1], marker=shapes[k], c=c)
+        ax.scatter(r[:,0], r[:,1], marker=shapes[-1], c=colors[-1])
     elif x.shape[1] == 1:
         ax = fig.add_subplot(111)
         for k, c in enumerate(colors[:-1]):
             index = (y == k)
             ax.hist(x[index,0])
         ax.hist(r[:,0])
-
 
 
 def train_reject_model(x, r):
@@ -105,12 +108,16 @@ def train_classifier_model(x,y):
     return model_clas
 
 if __name__ == "__main__":
-    x, y = generate_data(dim=2, holes=[1,2])
+    x, y = generate_data(dim=2, holes=[2,2,1])
     r = reject.create_reject_data(x, proportion=1, method='uniform_hsphere',
                                   pca=True, pca_variance=0.99, pca_components=0,
                                   hshape_cov=0, hshape_prop_in=0.97,
                                   hshape_multiplier=1.2)
-    plot_data_and_reject(x,y,r)
+
+    fig = plt.figure('data_reject')
+    fig.clf()
+    plot_data_and_reject(x,y,r,fig)
+    fig.savefig('synthetic_example.pdf')
 
     # Classifier of reject data
     model_rej = train_reject_model(x, r)
@@ -165,6 +172,7 @@ if __name__ == "__main__":
     fig = plt.figure('RGP')
     fig.clf()
     rgp.plot(fig)
+    fig.savefig('rgp_synthetic_example.pdf')
 
     ag = AbstainGainCurve(step1_reject_scores, step1_training_scores,
               step2_training_scores, training_labels)
@@ -173,5 +181,6 @@ if __name__ == "__main__":
     fig = plt.figure('AG')
     fig.clf()
     ag.plot(fig)
+    fig.savefig('ag_synthetic_example.pdf')
 
     print("Optimal threshold for the first classifier = {}".format(rgp.get_optimal_step1_threshold()))
