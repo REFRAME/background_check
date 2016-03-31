@@ -4,7 +4,7 @@ import numpy as np
 np.random.seed(42)
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
-plt.ion()
+# plt.ion()
 plt.rcParams['figure.figsize'] = (5,4)
 plt.rcParams['figure.autolayout'] = True
 

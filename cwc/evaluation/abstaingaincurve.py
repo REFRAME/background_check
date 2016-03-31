@@ -6,48 +6,58 @@ import warnings
 
 
 class AbstainGainCurve:
-    """This class represents an Abstain-gain (AG) curve. An object of class AbstainGainCurve is built based
-    on the result of two models:
+    """This class represents an Abstain-gain (AG) curve. An object of class
+    AbstainGainCurve is built based on the result of two models:
 
-    1- The first one is a training data vs reject data classifier and its recall and precision values at
-        various thresholds are used to build the curve;
-    2- The second (binary) classifier was trained to separate both classes of the original training data. Its
-        gain values for all recall values of the first classifier are multiplied by the corresponding precision values
-        and used to build the curve.
+    1- The first one is a training data vs reject data classifier and its
+        recall and precision values at various thresholds are used to build
+        the curve;
+    2- The second (binary) classifier was trained to separate both classes of
+        the original training data. Its gain values for all recall values of
+        the first classifier are multiplied by the corresponding precision
+        values and used to build the curve.
 
     Args:
-        step1_reject_scores ([float]): Positive scores for the reject data, obtained from
-            the training data vs reject data classifier. For each threshold value "theta",
-            the classifier accepts an instance "x" when "S_1(x) >= theta", where "S_1(x)" is
-            the score given by the first classifier to instance "x".
-        step1_training_scores ([float]): Positive scores for the training data, obtained from
-            the training data vs reject data classifier. For each threshold value "theta",
-            the classifier accepts an instance "x" when "S_1(x) >= theta", where "S_1(x)" is
-            the score given by the first classifier to instance "x".
-        step2_training_scores ([int]): Positive scores for the training data, obtained from
-            the second classifier. For each threshold value "theta",
-            the classifier labels an instance "x" as positive when "S_1(x) >= theta", where
-            "S_1(x)" is the score given by the second classifier to instance "x".
-        training_labels ([int]): Labels of the training data. 1 for the positive class
-            and 0 for the negative class.
-        gain (str): Which type of gain is used to evaluate the second classifier.
+        step1_reject_scores ([float]): Positive scores for the reject data,
+            obtained from the training data vs reject data classifier. For
+            each threshold value "theta", the classifier accepts an instance
+            "x" when "S_1(x) >= theta", where "S_1(x)" is the score given by
+            the first classifier to instance "x".
+        step1_training_scores ([float]): Positive scores for the training
+            data, obtained from the training data vs reject data classifier.
+            For each threshold value "theta", the classifier accepts an
+            instance "x" when "S_1(x) >= theta", where "S_1(x)" is the score
+            given by the first classifier to instance "x".
+        step2_training_scores ([int]): Positive scores for the training data,
+            obtained from the second classifier. For each threshold value
+            "theta", the classifier labels an instance "x" as positive when
+            "S_1(x) >= theta", where "S_1(x)" is the score given by the
+            second classifier to instance "x".
+        training_labels ([int]): Labels of the training data. 1 for the
+            positive class and 0 for the negative class.
+        gain (str): Which type of gain is used to evaluate the second
+            classifier.
         step2_threshold (float): Threshold used to calculate the gain of the
             second classifier.
 
     Attributes:
-        thresholds ([float]): Thresholds corresponding to the recall and precision values.
-        recalls ([float]): Recalls of the first classifier, calculated by thresholding over
-            step1_reject_scores and step1_training_scores.
-        precisions ([float]): Precisions of the first classifier, calculated by thresholding
-            over step1_reject_scores and step1_training_scores.
-        gains ([float]): Gain values of the second classifier, calculated using the true
-            training instances accepted by the first classifier at the various recall thresholds.
-        gain_type (str): Which type of gain is used to evaluate the second classifier.
-        positive_proportion (float): the proportion of positives (true training data)
-            scored by the first classifier.
+        thresholds ([float]): Thresholds corresponding to the recall and
+            precision values.
+        recalls ([float]): Recalls of the first classifier, calculated by
+            thresholding over step1_reject_scores and step1_training_scores.
+        precisions ([float]): Precisions of the first classifier, calculated
+            by thresholding over step1_reject_scores and step1_training_scores.
+        gains ([float]): Gain values of the second classifier, calculated
+            using the true training instances accepted by the first
+            classifier at the various recall thresholds.
+        gain_type (str): Which type of gain is used to evaluate the second
+            classifier.
+        positive_proportion (float): the proportion of positives (true
+            training data) scored by the first classifier.
 
     """
-    def __init__(self, step1_reject_scores, step1_training_scores, step2_training_scores,
+    def __init__(self, step1_reject_scores, step1_training_scores,
+                 step2_training_scores,
                  training_labels, gain="accuracy", step2_threshold=0.5):
 
         pos_scores = np.append(np.inf, np.unique(np.append(
@@ -70,11 +80,13 @@ class AbstainGainCurve:
                 if (np.sum(accepted_training) + n_accepted_rejects) == 0.0:
                     self.precisions[i] = np.nan
                 else:
-                    self.precisions[i] = np.sum(accepted_training) / (np.sum(accepted_training) + n_accepted_rejects)
+                    self.precisions[i] = np.sum(accepted_training) / (
+                        np.sum(accepted_training) + n_accepted_rejects)
                 accepted_scores = step2_training_scores[accepted_training]
                 accepted_labels = training_labels[accepted_training]
                 self.gains[i] = calculate_gain(accepted_scores, accepted_labels,
-                                               gain=gain, threshold=step2_threshold)
+                                               gain=gain,
+                                               threshold=step2_threshold)
         self.recalls = self.recalls[self.thresholds > -1.0]
         self.gains = self.gains[self.thresholds > -1.0]
         self.precisions = self.precisions[self.thresholds > -1.0]
@@ -87,8 +99,10 @@ class AbstainGainCurve:
         self.mod_gains_ag = mod_gains_ag[recalls_ag >= 0]
         self.recalls_ag = recalls_ag[recalls_ag >= 0]
         # pi = np.sum(training_labels == 1) / np.alen(training_labels)
-        # self.f_betas = calculate_f_betas(self.recalls, self.precisions, self.gains, pi=pi, min_beta=0.5)
-        # self.values = calculate_values(self.recalls, self.precisions, self.gains)
+        # self.f_betas = calculate_f_betas(self.recalls, self.precisions,
+        # self.gains, pi=pi, min_beta=0.5)
+        # self.values = calculate_values(self.recalls, self.precisions, 
+        # self.gains)
 
     def plot(self, fig=None, baseline=True):
         """This method plots the RGP surface, with the recalls from the
@@ -141,20 +155,23 @@ class AbstainGainCurve:
         return auc(self.recalls_ag, self.mod_gains_ag, reorder=True)
 
 
-def calculate_gain(accepted_scores, accepted_labels, gain="accuracy", threshold=0.5):
-    """This function calculates the gain of the second classifier, based on the true
-    training instances accepted by the first classifier.
+def calculate_gain(accepted_scores, accepted_labels, gain="accuracy",
+                   threshold=0.5):
+    """This function calculates the gain of the second classifier, based on the
+    true training instances accepted by the first classifier.
 
         Args:
             accepted_scores ([int]): Positive scores obtained from
                 the second classifier for the true training data
-                accepted by the first classifier. For each threshold value "theta",
-                the second classifier labels an instance "x" as positive when "S_1(x) >= theta", where
-                "S_1(x)" is the score given by the second classifier to instance "x".
+                accepted by the first classifier. For each threshold value
+                "theta", the second classifier labels an instance "x" as
+                positive when "S_1(x) >= theta", where "S_1(x)" is the score
+                given by the second classifier to instance "x".
             accepted_labels ([int]): Labels of the true training data
                 accepted by the first classifier. 1 for the positive class
                 and 0 for the negative class.
-            gain (str): Which type of gain is used to evaluate the second classifier.
+            gain (str): Which type of gain is used to evaluate the second
+                classifier.
             threshold (float): Threshold used to calculate the gain of the
                 second classifier.
 
@@ -168,7 +185,8 @@ def calculate_gain(accepted_scores, accepted_labels, gain="accuracy", threshold=
             return np.nan
         else:
             n_correct_instances = np.sum(np.logical_not(
-                np.logical_xor(accepted_scores >= threshold, accepted_labels == 1)))
+                np.logical_xor(accepted_scores >= threshold,
+                               accepted_labels == 1)))
             return n_correct_instances / np.alen(accepted_labels)
 
 
@@ -187,20 +205,23 @@ def calculate_abstain_gains(recalls, precisions, gains, pi):
 
     """
     g = gains[np.argmax(recalls)]
-    mod_gains_ag = (gains*precisions - g*pi) / ((1.0 - g*pi) * gains*precisions)
-    recalls_ag = (recalls - g*pi) / ((1.0 - g*pi) * recalls)
+    mod_gains_ag = (gains*precisions - g*pi) / (1.0 - g*pi)
+    recalls_ag = (recalls - g*pi) / (1.0 - g*pi)
 
-    non_negative_indices = np.where(recalls_ag >= 0)[0]
-    j = np.amin(non_negative_indices)
-    if recalls_ag[j] > 0:
-        slope = (mod_gains_ag[j] - mod_gains_ag[j-1]) / (recalls_ag[j] -
-                                                         recalls_ag[j-1])
-        new_mod_gain_ag = -recalls_ag[j-1]*slope + mod_gains_ag[j-1]
-        recalls_ag = np.insert(recalls_ag, j, 0)
-        mod_gains_ag = np.insert(mod_gains_ag, j, new_mod_gain_ag)
 
-    min_mod_gain_ag = np.amin(mod_gains_ag[non_negative_indices])
-    if min_mod_gain_ag > 0:
-        recalls_ag = np.append(recalls_ag, 1)
-        mod_gains_ag = np.append(mod_gains_ag, 0)
+
+
+    # non_negative_indices = np.where(recalls_ag >= 0)[0]
+    # j = np.amin(non_negative_indices)
+    # if recalls_ag[j] > 0:
+    #     slope = (mod_gains_ag[j] - mod_gains_ag[j-1]) / (recalls_ag[j] -
+    #                                                      recalls_ag[j-1])
+    #     new_mod_gain_ag = -recalls_ag[j-1]*slope + mod_gains_ag[j-1]
+    #     recalls_ag = np.insert(recalls_ag, j, 0)
+    #     mod_gains_ag = np.insert(mod_gains_ag, j, new_mod_gain_ag)
+    #
+    # min_mod_gain_ag = np.amin(mod_gains_ag[non_negative_indices])
+    # if min_mod_gain_ag > 0:
+    #     recalls_ag = np.append(recalls_ag, 1)
+    #     mod_gains_ag = np.append(mod_gains_ag, 0)
     return [recalls_ag, mod_gains_ag]
