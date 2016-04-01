@@ -6,49 +6,59 @@ import warnings
 
 
 class RGP:
-    """This class represents a Recall_1-Gain_2-Precision_1 (RGP) curve. An object of class RGP is built based
-    on the result of two models:
+    """This class represents a Recall_1-Gain_2-Precision_1 (RGP) curve.
 
-    1- The first one is a training data vs reject data classifier and its recall and precision values at
-        various thresholds are used to build the curve;
-    2- The second (binary) classifier was trained to separate both classes of the original training data. Its
-        gain values for all recall values of the first classifier are multiplied by the corresponding precision values
-        and used to build the curve.
+    An object of class RGP is built based on the result of two models:
+
+    1- The first one is a training data vs reject data classifier and its
+      recall and precision values at various thresholds are used to build the
+      curve;
+    2- The second (binary) classifier was trained to separate both classes of
+      the original training data. Its gain values for all recall values of the
+      first classifier are multiplied by the corresponding precision values and
+      used to build the curve.
 
     Args:
-        step1_reject_scores ([float]): Positive scores for the reject data, obtained from
-            the training data vs reject data classifier. For each threshold value "theta",
-            the classifier accepts an instance "x" when "S_1(x) >= theta", where "S_1(x)" is
-            the score given by the first classifier to instance "x".
-        step1_training_scores ([float]): Positive scores for the training data, obtained from
-            the training data vs reject data classifier. For each threshold value "theta",
-            the classifier accepts an instance "x" when "S_1(x) >= theta", where "S_1(x)" is
-            the score given by the first classifier to instance "x".
-        step2_training_scores ([int]): Positive scores for the training data, obtained from
-            the second classifier. For each threshold value "theta",
-            the classifier labels an instance "x" as positive when "S_1(x) >= theta", where
-            "S_1(x)" is the score given by the second classifier to instance "x".
-        training_labels ([int]): Labels of the training data. 1 for the positive class
-            and 0 for the negative class.
+        step1_reject_scores ([float]): Positive scores for the reject data,
+          obtained from the training data vs reject data classifier. For each
+          threshold value "theta", the classifier accepts an instance "x" when
+          "S_1(x) >= theta", where "S_1(x)" is the score given by the first
+          classifier to instance "x".
+        step1_training_scores ([float]): Positive scores for the training data,
+          obtained from the training data vs reject data classifier. For each
+          threshold value "theta", the classifier accepts an instance "x" when
+          "S_1(x) >= theta", where "S_1(x)" is the score given by the first
+          classifier to instance "x".
+        step2_training_scores ([int]): Positive scores for the training data,
+          obtained from the second classifier. For each threshold value "theta",
+          the classifier labels an instance "x" as positive when "S_1(x) >=
+          theta", where "S_1(x)" is the score given by the second classifier to
+          instance "x".
+        training_labels ([int]): Labels of the training data. 1 for the
+          positive class and 0 for the negative class.
         gain (str): Which type of gain is used to evaluate the second classifier.
         step2_threshold (float): Threshold used to calculate the gain of the
             second classifier.
 
     Attributes:
-        thresholds ([float]): Thresholds corresponding to the recall and precision values.
-        recalls ([float]): Recalls of the first classifier, calculated by thresholding over
-            step1_reject_scores and step1_training_scores.
-        precisions ([float]): Precisions of the first classifier, calculated by thresholding
-            over step1_reject_scores and step1_training_scores.
-        gains ([float]): Gain values of the second classifier, calculated using the true
-            training instances accepted by the first classifier at the various recall thresholds.
-        gain_type (str): Which type of gain is used to evaluate the second classifier.
-        positive_proportion (float): the proportion of positives (true training data)
-            scored by the first classifier.
+        thresholds ([float]): Thresholds corresponding to the recall and
+          precision values.
+        recalls ([float]): Recalls of the first classifier, calculated by
+          thresholding over step1_reject_scores and step1_training_scores.
+        precisions ([float]): Precisions of the first classifier, calculated by
+          thresholding over step1_reject_scores and step1_training_scores.
+        gains ([float]): Gain values of the second classifier, calculated using
+          the true training instances accepted by the first classifier at the
+          various recall thresholds.
+        gain_type (str): Which type of gain is used to evaluate the second
+          classifier.
+        positive_proportion (float): the proportion of positives (true training
+          data) scored by the first classifier.
 
     """
-    def __init__(self, step1_reject_scores, step1_training_scores, step2_training_scores,
-                 training_labels, gain="accuracy", step2_threshold=0.5):
+    def __init__(self, step1_reject_scores, step1_training_scores,
+                 step2_training_scores, training_labels, gain="accuracy",
+                 step2_threshold=0.5):
 
         pos_scores = np.append(np.inf, np.unique(np.append(
             step1_training_scores, step1_reject_scores))[::-1])
@@ -67,10 +77,11 @@ class RGP:
             if i == 0 or new_recall != self.recalls[i-1]:
                 self.thresholds[i] = threshold
                 self.recalls[i] = new_recall
-                if (np.sum(accepted_training) + n_accepted_rejects) == 0.0:
+                sum_at = np.sum(accepted_training)
+                if (sum_at + n_accepted_rejects) == 0.0:
                     self.precisions[i] = np.nan
                 else:
-                    self.precisions[i] = np.sum(accepted_training) / (np.sum(accepted_training) + n_accepted_rejects)
+                    self.precisions[i] = sum_at / (sum_at + n_accepted_rejects)
                 accepted_scores = step2_training_scores[accepted_training]
                 accepted_labels = training_labels[accepted_training]
                 self.gains[i] = calculate_gain(accepted_scores, accepted_labels,
@@ -115,8 +126,8 @@ class RGP:
         # index = np.argmax(self.values)
         # plt.scatter(self.recalls[index], self.gains[index] *
         #             self.precisions[index], s=70, c='r', marker='o')
-        plt.xlabel("$r_1$")
-        plt.ylabel("$acc'_2$")
+        plt.xlabel("$\mathrm{Recall}_1$")
+        plt.ylabel("$\mathrm{Accuracy'}_2$")
         axes = plt.gca()
         axes.set_xlim([0.0, 1.01])
         axes.set_ylim([0.0, 1.0])

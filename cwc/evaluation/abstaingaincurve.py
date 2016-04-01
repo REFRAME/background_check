@@ -146,8 +146,8 @@ class AbstainGainCurve:
         if fig is None:
             fig = plt.figure()
         plt.plot(self.recalls_ag, self.mod_gains_ag, 'k.-')
-        plt.xlabel("$Recall-AG_1$")
-        plt.ylabel("$acc-AG_2$")
+        plt.xlabel("$\mathrm{Recall}_1-AG$")
+        plt.ylabel("$\mathrm{Accuracy'}_2-AG$")
         axes = plt.gca()
         axes.set_xlim([0.0, 1.01])
         axes.set_ylim([0.0, 1.0])

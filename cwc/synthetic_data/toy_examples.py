@@ -34,7 +34,6 @@ def generate_gaussians(means=[[0,0]], covs=[[[1,0],[0,1]]], samples=[1],
         new_cumsum = cumsum + samples[i]
         Y[cumsum:new_cumsum] = i
         if holes[i] != 0:
-          print('Class {} has a hole of size = {}'.format(i, holes[i]))
           loop = True
           hole_origin = numpy.random.multivariate_normal(
                                     means[i], covs[i], size=(1))
