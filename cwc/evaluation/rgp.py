@@ -77,11 +77,10 @@ class RGP:
             if i == 0 or new_recall != self.recalls[i-1]:
                 self.thresholds[i] = threshold
                 self.recalls[i] = new_recall
-                sum_at = np.sum(accepted_training)
-                if (sum_at + n_accepted_rejects) == 0.0:
+                if (np.sum(accepted_training) + n_accepted_rejects) == 0.0:
                     self.precisions[i] = np.nan
                 else:
-                    self.precisions[i] = sum_at / (sum_at + n_accepted_rejects)
+                    self.precisions[i] = np.sum(accepted_training) / (np.sum(accepted_training) + n_accepted_rejects)
                 accepted_scores = step2_training_scores[accepted_training]
                 accepted_labels = training_labels[accepted_training]
                 self.gains[i] = calculate_gain(accepted_scores, accepted_labels,
@@ -94,7 +93,7 @@ class RGP:
         self.f_betas = calculate_f_betas(self.recalls, self.precisions, self.gains, pi=pi, min_beta=0.5)
         self.values = calculate_values(self.recalls, self.precisions, self.gains)
 
-    def plot(self, fig=None, baseline=True):
+    def plot(self, fig=None, baseline=True, accuracy=False, precision=False):
         """This method plots the RGP surface, with the recalls from the
         first classifier on the x-axis and the gains of the second classifier,
         multiplied by the corresponding precisions from the first classifier
@@ -118,7 +117,15 @@ class RGP:
         warnings.filterwarnings("ignore")
         if fig is None:
             fig = plt.figure()
-        plt.plot(self.recalls, self.gains * self.precisions, 'k.-')
+        if accuracy==True:
+            plt.plot(self.recalls, self.gains, 'k.-')
+            plt.ylabel("$\mathrm{Accuracy}_2$")
+        elif precision==True:
+            plt.plot(self.recalls, self.precisions, 'k.-')
+            plt.ylabel("$\mathrm{Precision}_1$")
+        else:
+            plt.plot(self.recalls, self.gains * self.precisions, 'k.-')
+            plt.ylabel("$\mathrm{Accuracy'}_2$")
         # plt.plot(self.recalls, self.gains * self.positive_proportion, 'k--')
         # index = np.argmax(self.f_betas)
         # plt.scatter(self.recalls[index], self.gains[index] *
@@ -127,7 +134,6 @@ class RGP:
         # plt.scatter(self.recalls[index], self.gains[index] *
         #             self.precisions[index], s=70, c='r', marker='o')
         plt.xlabel("$\mathrm{Recall}_1$")
-        plt.ylabel("$\mathrm{Accuracy'}_2$")
         axes = plt.gca()
         axes.set_xlim([0.0, 1.01])
         axes.set_ylim([0.0, 1.0])
