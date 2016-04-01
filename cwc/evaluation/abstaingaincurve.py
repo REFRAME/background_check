@@ -118,7 +118,6 @@ class AbstainGainCurve:
                                  gain=self.gain_type,
                                  threshold=step2_threshold)
 
-
         self.mod_gains_ag = self.mod_gains_ag[self.recalls_ag >= 0]
         self.recalls_ag = self.recalls_ag[self.recalls_ag >= 0]
 

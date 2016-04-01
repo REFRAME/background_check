@@ -110,7 +110,7 @@ if __name__ == "__main__":
                                   pca=True, pca_variance=0.99, pca_components=0,
                                   hshape_cov=0, hshape_prop_in=0.97,
                                   hshape_multiplier=1.2)
-    plot_data_and_reject(x,y,r)
+    # plot_data_and_reject(x,y,r)
 
     # Classifier of reject data
     model_rej = train_reject_model(x, r)
@@ -125,14 +125,14 @@ if __name__ == "__main__":
     training_labels = y
 
     # Show scores
-    fig = plt.figure('scores')
-    fig.clf()
-    ax = fig.add_subplot(111)
-    ax.set_title('Scores')
-    ax.hist([step1_reject_scores, step1_training_scores,
-             step2_training_scores])
-    ax.legend(['step1_reject', 'step1_training', 'step2_class1'],
-              loc='upper center')
+    # fig = plt.figure('scores')
+    # fig.clf()
+    # ax = fig.add_subplot(111)
+    # ax.set_title('Scores')
+    # ax.hist([step1_reject_scores, step1_training_scores,
+    #          step2_training_scores])
+    # ax.legend(['step1_reject', 'step1_training', 'step2_class1'],
+    #           loc='upper center')
 
     # Evaluate models
     # Accuracy
@@ -158,13 +158,13 @@ if __name__ == "__main__":
     # rgrpg.plot_rgrpg_3d(n_recalls=50, n_points_roc=50, fig=fig)
 
     # Area under the RGP curve
-    rgp = RGP(step1_reject_scores, step1_training_scores,
-              step2_training_scores, training_labels)
-
-    print("Area = {}".format(rgp.calculate_area()))
-    fig = plt.figure('RGP')
-    fig.clf()
-    rgp.plot(fig)
+    # rgp = RGP(step1_reject_scores, step1_training_scores,
+    #           step2_training_scores, training_labels)
+    #
+    # print("Area = {}".format(rgp.calculate_area()))
+    # fig = plt.figure('RGP')
+    # fig.clf()
+    # rgp.plot(fig)
 
     ag = AbstainGainCurve(step1_reject_scores, step1_training_scores,
               step2_training_scores, training_labels)
@@ -174,4 +174,4 @@ if __name__ == "__main__":
     fig.clf()
     ag.plot(fig)
 
-    print("Optimal threshold for the first classifier = {}".format(rgp.get_optimal_step1_threshold()))
+    # print("Optimal threshold for the first classifier = {}".format(rgp.get_optimal_step1_threshold()))
