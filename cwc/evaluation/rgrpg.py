@@ -62,12 +62,19 @@ class RGRPG:
 
         self.step2_rocs = dict()
         self.step2_thresholds = dict()
+        self.accuracies = np.zeros(n_recalls)
 
         for rg in np.arange(n_recalls):
             true_positive_indices = np.where(np.logical_and(self.step1_scores >= self.step1_thresholds[rg],
                                                             self.step1_labels == 1))[0]
             probabilities = step2_training_scores[true_positive_indices]
             labels = training_labels[true_positive_indices]
+
+            threshold = 0.5
+            n_correct_instances = np.sum(np.logical_not(
+                np.logical_xor(probabilities >= threshold,
+                               labels == 1)))
+            self.accuracies[rg] = n_correct_instances / np.alen(labels)
 
             self.areas[rg] = roc_auc_score(labels, probabilities)
             fpr, tpr, self.step2_thresholds[rg] = roc_curve(labels, probabilities)
@@ -96,6 +103,21 @@ class RGRPG:
         ax.set_ylabel("$AUROC^2 * PG^1$")
         ax.set_xlim([0.0, 1.0])
         ax.set_ylim([0.0, 1.0])
+        plt.show()
+
+    def plot_simple_3d(self, fig=None):
+        warnings.filterwarnings("ignore")
+        if fig is None:
+            fig = plt.figure()
+
+        ax = fig.gca(projection='3d')
+        ax.plot(self.recall_gains, self.precision_gains, self.accuracies, 'k.-')
+        ax.set_xlabel('$RG_1$')
+        ax.set_ylabel('$PG_1$')
+        ax.set_zlabel('$ACC_2$')
+        ax.set_xlim([0.0, 1.0])
+        ax.set_ylim([0.0, 1.0])
+        ax.set_zlim([0.0, 1.0])
         plt.show()
 
     def plot_rgrpg_3d(self, n_recalls=10, n_points_roc=10, fig=None):
