@@ -149,6 +149,4 @@ def calculate_accuracy(accepted_scores, accepted_labels):
     if np.alen(accepted_labels) == 0:
         return 0
     else:
-        n_correct_instances = np.sum(np.logical_not(
-            np.logical_xor(accepted_scores >= 0.5, accepted_labels == 1)))
-        return n_correct_instances / np.alen(accepted_labels)
+        return np.mean(np.argmax(accepted_scores, axis=1) == accepted_labels)
