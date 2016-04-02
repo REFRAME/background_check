@@ -76,9 +76,9 @@ class RGRPG:
                                labels == 1)))
             self.accuracies[rg] = n_correct_instances / np.alen(labels)
 
-            self.areas[rg] = roc_auc_score(labels, probabilities)
-            fpr, tpr, self.step2_thresholds[rg] = roc_curve(labels, probabilities)
-            self.step2_rocs[rg] = np.append(tpr.reshape(-1, 1), fpr.reshape(-1, 1), axis=1)
+            #self.areas[rg] = roc_auc_score(labels, probabilities)
+            #fpr, tpr, self.step2_thresholds[rg] = roc_curve(labels, probabilities)
+            #self.step2_rocs[rg] = np.append(tpr.reshape(-1, 1), fpr.reshape(-1, 1), axis=1)
 
     def plot_rgrpg_2d(self, fig=None):
         """This method plots the 2d version of the RGPRG surface, with the recall-gains from the
