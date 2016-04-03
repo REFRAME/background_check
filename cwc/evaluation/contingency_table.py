@@ -1,7 +1,10 @@
 class ContingencyTable(object):
 
     def __init__(self, tp, tn, fp, fn):
-        self.ct = np.asarray([[tp, tn], [fp, fn]])
+        self.tp = tp
+        self.tn = tn
+        self.fp = fp
+        self.fn = fn
 
     def get_from_predictions(self, predictions, labels):
         self.tp = sum(predictions[labels==1])
@@ -10,25 +13,14 @@ class ContingencyTable(object):
         self.fn = sum(1 - predictions[labels==1])
 
     @property
-    def tp(self):
-        return self.ct[0,0]
-
-    @property
-    def tn(self):
-        return self.ct[0,1]
-
-    @property
-    def fp(self):
-        return self.ct[1,0]
-
-    @property
-    def fn(self):
-        return self.ct[1,1]
-
-    @property
     def pos(self):
-        return sum(self.ct[:,0])
+        return self.tp + self.fn
 
     @property
     def neg(self):
-        return sum(self.ct[:,1])
+        return self.tn + self.fp
+
+    def __str__(self):
+        return (('\tPre.+\tPre.-\n'
+                 'Act.+\t{}\t{}\n'
+                 'Act.-\t{}\t{}').format(self.tp, self.fn, self.fp, self.tn))
