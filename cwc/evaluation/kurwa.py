@@ -124,6 +124,10 @@ class Kurwa:
     def recalls(self):
         return self.recalls
 
+    @property
+    def precisions(self):
+        return self.precisions
+
 def calculate_accuracy(accepted_scores, accepted_labels):
     """This function calculates the gain of the second classifier, based on the true
     training instances accepted by the first classifier.

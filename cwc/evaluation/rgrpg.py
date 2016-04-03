@@ -120,6 +120,10 @@ class RGRPG:
         ax.set_zlim([0.0, 1.0])
         plt.show()
 
+    @property
+    def prga(self):
+        return auc(self.recall_gains, self.precision_gains)
+
     def plot_rgrpg_3d(self, n_recalls=10, n_points_roc=10, fig=None):
         """This method plots the 3d version of the RGPRG surface, with the recall-gains from the
         training data vs reject data classifier on the z-axis and the true positive and false positive rates of the

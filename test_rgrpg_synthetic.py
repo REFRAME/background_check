@@ -12,6 +12,8 @@ from sklearn.mixture import GMM
 from sklearn import svm
 from sklearn import tree
 from sklearn.preprocessing import label_binarize
+from sklearn.metrics import roc_curve
+from sklearn.metrics import auc
 
 from cwc.synthetic_data import toy_examples
 from cwc.synthetic_data import reject
@@ -85,7 +87,7 @@ def generate_data(example=1):
                  [1,2]]]
 
     elif example == 6:
-        holes=[4,0]
+        holes=[3,0]
         samples = [1000,         # Class 1
                    1000]         # Class 2
         means = [[0,0],       # Class 1
@@ -94,6 +96,16 @@ def generate_data(example=1):
                  [0,4]],
                 [[2,0],       # Class 2
                  [0,2]]]
+    elif example == 7:
+        holes=[0,0]
+        samples = [1000,         # Class 1
+                   1000]         # Class 2
+        means = [[0,0],       # Class 1
+                 [1,1]]       # Class 2
+        covs = [[[1,0],       # Class 1
+                 [0,1]],
+                [[1,0],       # Class 2
+                 [0,1]]]
     else:
         raise Exception('Example {} does not exist'.format(example))
 
@@ -140,9 +152,8 @@ def composite_average_cross_entropy(p1,q1,p2,q2):
 
 
 def compute_cace(c1_rs, c1_ts, c2_ts, y):
-    q1 = c1_rs
-    q1 = np.vstack([q1, c1_ts])
-    p1 = np.vstack([np.ones((len(r),1)), np.zeros((len(x),1))])
+    q1 = np.vstack([c1_rs, c1_ts])
+    p1 = np.vstack([np.ones((len(c1_rs),1)), np.zeros((len(c1_ts),1))])
     p1 = np.hstack([p1, 1-p1])
 
     q2 = c2_ts
@@ -177,12 +188,12 @@ def train_classifier_model(x,y):
 
 if __name__ == "__main__":
     # for i in  [6]: #range(1,4):
-    n_iterations = 100
+    n_iterations = 1
     n_thresholds = 100
     accuracies = np.empty((n_iterations, n_thresholds))
     recalls = np.empty((n_iterations, n_thresholds))
     for iteration in range(n_iterations):
-        example = 2
+        example = 7
         x, y = generate_data(example)
         r = reject.create_reject_data(x, proportion=1, method='uniform_hsphere',
                                       pca=True, pca_variance=0.99, pca_components=0,
@@ -291,7 +302,6 @@ if __name__ == "__main__":
         recalls[iteration] = kurwa.recalls
         print('Iteration {}'.format(iteration))
 
-
     expected_acc = accuracies.mean(axis=0)
     expected_rec = recalls.mean(axis=0)
     fig = plt.figure('Expected_rec_acc')
@@ -344,6 +354,21 @@ if __name__ == "__main__":
     rgrpg = RGRPG(step1_reject_scores, step1_training_scores, step2_training_scores, training_labels)
     rgrpg.plot_simple_3d(fig)
     fig.savefig('{}_rg1_pg1_acc2_synthetic_example.pdf'.format(example))
+
+    print("ROC_curve_classifier_1")
+    fig = plt.figure('ROC_curve_classifier_1')
+    fig.clf()
+    p1 = np.vstack([np.zeros((len(step1_reject_scores),1)),
+                    np.ones((len(step1_training_scores),1))])
+    fpr, tpr, threshold = roc_curve(p1, np.append(step1_reject_scores,
+                                                   step1_training_scores))
+    area = auc(fpr, tpr)
+    print('AUC Classifier 1 = {}'.format(area))
+    print('PRGA Classifier 1 = {}'.format(rgrpg.prga))
+    plt.plot(fpr, tpr, 'k.-')
+    plt.xlabel('$FPr_1$')
+    plt.ylabel('$TPr_1$')
+    fig.savefig('{}_roc_clas1_synthetic_example.pdf'.format(example))
 
     if x.shape[1] == 2:
         fig = plt.figure('data_reject')
