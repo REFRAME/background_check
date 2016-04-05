@@ -4,6 +4,7 @@ import numpy as np
 np.random.seed(42)
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 plt.ion()
 plt.rcParams['figure.figsize'] = (7,6)
 plt.rcParams['figure.autolayout'] = True
@@ -521,7 +522,7 @@ if __name__ == "__main__":
             # cyan to alpha: class 3
             x_min = np.min(r,axis=0)
             x_max = np.max(r,axis=0)
-            delta = 50
+            delta = 70
             x1_lin = np.linspace(x_min[0], x_max[0], delta)
             x2_lin = np.linspace(x_min[1], x_max[1], delta)
 
@@ -546,6 +547,56 @@ if __name__ == "__main__":
             plt.xlim([x_min[0], x_max[0]])
             plt.ylim([x_min[1], x_max[1]])
             fig.savefig('{}_prediction_grid_synthetic_example.pdf'.format(example))
+
+
+            cm_ra = {'red': ((0.0, 1.0, 1.0),
+                             (1.0, 1.0, 1.0)),
+                    'green': ((0.0, 1.0, 1.0),
+                              (1.0, 0.0, 0.0)),
+                    'blue': ((0.0, 1.0, 1.0),
+                              (1.0, 0.0, 0.0)),
+                    'alpha': ((0.0, 0.0, 0.0),
+                              (1.0, 1.0, 1.0))}
+            red_alpha = LinearSegmentedColormap('RedAlpha1', cm_ra)
+            cm_ba = {'red': ((0.0, 1.0, 1.0),
+                             (1.0, 0.0, 0.0)),
+                    'green': ((0.0, 1.0, 1.0),
+                              (1.0, 0.0, 0.0)),
+                    'blue': ((0.0, 1.0, 1.0),
+                              (1.0, 1.0, 1.0)),
+                    'alpha': ((0.0, 0.0, 0.0),
+                              (1.0, 1.0, 1.0))}
+            blue_alpha = LinearSegmentedColormap('BlueAlpha1', cm_ba)
+            cm_ya = {'red': ((0.0, 1.0, 1.0),
+                             (1.0, 1.0, 1.0)),
+                    'green': ((0.0, 1.0, 1.0),
+                              (1.0, 1.0, 1.0)),
+                    'blue': ((0.0, 1.0, 1.0),
+                              (1.0, 0.0, 0.0)),
+                    'alpha': ((0.0, 0.0, 0.0),
+                              (1.0, 1.0, 1.0))}
+            yellow_alpha = LinearSegmentedColormap('YellowAlpha1', cm_ya)
+            cm_ga = {'red': ((0.0, 1.0, 1.0),
+                             (1.0, 0.0, 0.0)),
+                    'green': ((0.0, 1.0, 1.0),
+                              (1.0, 1.0, 1.0)),
+                    'blue': ((0.0, 1.0, 1.0),
+                              (1.0, 0.0, 0.0)),
+                    'alpha': ((0.0, 0.0, 0.0),
+                              (1.0, 1.0, 1.0))}
+            green_alpha = LinearSegmentedColormap('GreenAlpha1', cm_ga)
+            fig = plt.figure('heat_map', frameon=False)
+            plt.clf()
+            plt.imshow(q_grid[:,0].reshape((delta,delta)), cmap=plt.cm.Greys)
+            plt.imshow(q_grid[:,1].reshape((delta,delta)), cmap=blue_alpha)
+            plt.imshow(q_grid[:,2].reshape((delta,delta)), cmap=green_alpha)
+#            plt.pcolormesh(MX1, MX2, q_grid[:,2].reshape((delta,delta)), alpha=0.5,
+#                    cmap=plt.cm.YlOrBr)
+            plt.ylim([0,delta-1])
+#            plt.xlim([x_min[0], x_max[0]])
+#            plt.ylim([x_min[1], x_max[1]])
+            fig.savefig('{}_heat_map_synthetic_example.pdf'.format(example))
+
 
             # CONTOUR CLASSIFIER 1
             fig = plt.figure('data_reject')
