@@ -4,7 +4,6 @@ import numpy as np
 np.random.seed(42)
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
 plt.ion()
 plt.rcParams['figure.figsize'] = (7,6)
 plt.rcParams['figure.autolayout'] = True
@@ -22,9 +21,11 @@ from cwc.evaluation.rgrpg import RGRPG
 from cwc.evaluation.rgp import RGP
 from cwc.evaluation.abstaingaincurve import AbstainGainCurve
 from cwc.evaluation.kurwa import Kurwa
+from cwc.visualization import heatmaps
+from cwc.visualization import scatterplots
 
 # FIXME change the holes for optional arguments
-def generate_data(example=1):
+def generate_data(example=1, hole_centers=None):
     if example == 1:
         holes=[2,1]
         samples = [900,         # Class 1
@@ -107,41 +108,35 @@ def generate_data(example=1):
                  [0,1]],
                 [[1,0],       # Class 2
                  [0,1]]]
+    elif example == 8:
+        holes=[3,2,1,2]
+        samples = [400,         # Class 1
+                   300,         # Class 2
+                   300,         # Class 3
+                   150]         # Class 4
+        means = [[-3,0],       # Class 1
+                 [2,2],       # Class 2
+                 [-3,0],       # Class 3
+                 [3,-4]]       # Class 4
+        covs = [[[3,0.3],       # Class 1
+                 [0.3,2]],
+                [[3,0],       # Class 2
+                 [0,3]],
+                [[1,-0.2],       # Class 3
+                 [-0.2,1]],
+                [[2,-0.5],       # Class 4
+                 [-0.5,2]]]
     else:
         raise Exception('Example {} does not exist'.format(example))
 
-    x, y = toy_examples.generate_gaussians(means=means, covs=covs,
-                                           samples=samples, holes=holes)
+    x, y, hole_centers = toy_examples.generate_gaussians(
+                          means=means, covs=covs, samples=samples, holes=holes,
+                            hole_centers=hole_centers)
     if example==5:
         y[y==2] = 1
-    return x, y
+    return x, y, hole_centers
 
 
-def plot_data_and_reject(x, y, r, fig=None):
-    # Options for plotting
-    colors = ['#7777CC', '#FFFF99', '#99FFFF', '#CCCCCC']    # One color per class + reject
-    shapes = ['o', 's', '^', '+']
-
-    if fig == None:
-        fig = plt.figure('data reject')
-    if x.shape[1] >= 3:
-        ax = fig.add_subplot(111, projection='3d')
-        for k, c in enumerate(colors[:-1]):
-            index = (y == k)
-            ax.scatter(x[index,0], x[index,1], x[index,2], marker=shapes[k], c=c)
-        ax.scatter(r[:,0], r[:,1], r[:,2], marker=shapes[-1], c=colors[-1])
-    elif x.shape[1] == 2:
-        ax = fig.add_subplot(111)
-        for k, c in enumerate(colors[:-1]):
-            index = (y == k)
-            ax.scatter(x[index,0], x[index,1], marker=shapes[k], c=c)
-        ax.scatter(r[:,0], r[:,1], marker=shapes[-1], c=colors[-1])
-    elif x.shape[1] == 1:
-        ax = fig.add_subplot(111)
-        for k, c in enumerate(colors[:-1]):
-            index = (y == k)
-            ax.hist(x[index,0])
-        ax.hist(r[:,0])
 
 
 def average_cross_entropy(p,q):
@@ -193,23 +188,24 @@ if __name__ == "__main__":
     n_thresholds = 100
     accuracies = np.empty((n_iterations, n_thresholds))
     recalls = np.empty((n_iterations, n_thresholds))
-    for example in [2,3,5,6,7]:
+    for example in [2,3,5,6,7,8]:
+        np.random.seed(42)
         print('Runing example = {}'.format(example))
         for iteration in range(n_iterations):
 
             #####################################################
             # TRAINING                                          #
             #####################################################
-            x, y = generate_data(example)
+            x, y, hole_centers = generate_data(example)
             r = reject.create_reject_data(x, proportion=1, method='uniform_hsphere',
                                           pca=True, pca_variance=0.99, pca_components=0,
                                           hshape_cov=0, hshape_prop_in=0.99,
                                           hshape_multiplier=1.5)
 
-            fig = plt.figure('data_reject')
+            fig = plt.figure('training_data')
             fig.clf()
-            plot_data_and_reject(x,y,r,fig)
-            fig.savefig('{}_data_synthetic_example.pdf'.format(example))
+            scatterplots.plot_data_and_reject(x,y,r,fig)
+            fig.savefig('{}_training_data_synthetic_example.pdf'.format(example))
 
             # Classifier of reject data
             model_rej = train_reject_model(x, r)
@@ -249,11 +245,16 @@ if __name__ == "__main__":
             #####################################################
             # FIXME the validation data does not have the hole in the same
             # position as the training data
-            x, y = generate_data(example)
+            x, y, hole_centers = generate_data(example, hole_centers)
             r = reject.create_reject_data(x, proportion=1, method='uniform_hsphere',
                                           pca=True, pca_variance=0.99, pca_components=0,
                                           hshape_cov=0, hshape_prop_in=0.99,
                                           hshape_multiplier=1.5)
+
+            fig = plt.figure('validation_data')
+            fig.clf()
+            scatterplots.plot_data_and_reject(x,y,r,fig)
+            fig.savefig('{}_validation_data_synthetic_example.pdf'.format(example))
 
             # TEST SCORES
             c1_rs = model_rej.predict_proba(r)
@@ -515,11 +516,6 @@ if __name__ == "__main__":
         if x.shape[1] == 2:
             threshold = thresholds_joint[-1-np.argmax(np.mean(fbeta, axis=1)[::-1])]
             # FIXME take into account maximum values for training instances
-            # TODO Add heat map for all the predicted probabilities
-            # gray to white: reject data
-            # blue to alpha: class 1
-            # yellow to alpha: class 2
-            # cyan to alpha: class 3
             x_min = np.min(r,axis=0)
             x_max = np.max(r,axis=0)
             delta = 70
@@ -532,75 +528,22 @@ if __name__ == "__main__":
             q2_grid =  model_clas.predict_proba(x_grid)
 
             q_grid = np.hstack([np.expand_dims(q1_grid[:,0], axis=1), (q2_grid.T*q1_grid[:,1]).T])
-            predictions_grid = q_grid >= threshold
-            colors = ['#CCCCCC', '#7777CC', '#FFFF99', '#99FFFF']
-            shapes = ['s', 'o', 's', '^']
-            sizes = [30, 20, 20, 20]
-            fig = plt.figure('fbeta_grid')
-            plt.clf()
-            for class_id in range(predictions_grid.shape[1]):
-                # FIXME consider more than three classes
-                plt.scatter(x_grid[predictions_grid[:,class_id],0],
-                            x_grid[predictions_grid[:,class_id],1],
-                            marker=shapes[class_id],
-                            c=colors[class_id], s=sizes[class_id])
-            plt.xlim([x_min[0], x_max[0]])
-            plt.ylim([x_min[1], x_max[1]])
-            fig.savefig('{}_prediction_grid_synthetic_example.pdf'.format(example))
 
-
-            cm_ra = {'red': ((0.0, 1.0, 1.0),
-                             (1.0, 1.0, 1.0)),
-                    'green': ((0.0, 1.0, 1.0),
-                              (1.0, 0.0, 0.0)),
-                    'blue': ((0.0, 1.0, 1.0),
-                              (1.0, 0.0, 0.0)),
-                    'alpha': ((0.0, 0.0, 0.0),
-                              (1.0, 1.0, 1.0))}
-            red_alpha = LinearSegmentedColormap('RedAlpha1', cm_ra)
-            cm_ba = {'red': ((0.0, 1.0, 1.0),
-                             (1.0, 0.0, 0.0)),
-                    'green': ((0.0, 1.0, 1.0),
-                              (1.0, 0.0, 0.0)),
-                    'blue': ((0.0, 1.0, 1.0),
-                              (1.0, 1.0, 1.0)),
-                    'alpha': ((0.0, 0.0, 0.0),
-                              (1.0, 1.0, 1.0))}
-            blue_alpha = LinearSegmentedColormap('BlueAlpha1', cm_ba)
-            cm_ya = {'red': ((0.0, 1.0, 1.0),
-                             (1.0, 1.0, 1.0)),
-                    'green': ((0.0, 1.0, 1.0),
-                              (1.0, 1.0, 1.0)),
-                    'blue': ((0.0, 1.0, 1.0),
-                              (1.0, 0.0, 0.0)),
-                    'alpha': ((0.0, 0.0, 0.0),
-                              (1.0, 1.0, 1.0))}
-            yellow_alpha = LinearSegmentedColormap('YellowAlpha1', cm_ya)
-            cm_ga = {'red': ((0.0, 1.0, 1.0),
-                             (1.0, 0.0, 0.0)),
-                    'green': ((0.0, 1.0, 1.0),
-                              (1.0, 1.0, 1.0)),
-                    'blue': ((0.0, 1.0, 1.0),
-                              (1.0, 0.0, 0.0)),
-                    'alpha': ((0.0, 0.0, 0.0),
-                              (1.0, 1.0, 1.0))}
-            green_alpha = LinearSegmentedColormap('GreenAlpha1', cm_ga)
+            # HEATMAP OF PROBABILITIES
             fig = plt.figure('heat_map', frameon=False)
             plt.clf()
-            plt.imshow(q_grid[:,0].reshape((delta,delta)), cmap=plt.cm.Greys)
-            plt.imshow(q_grid[:,1].reshape((delta,delta)), cmap=blue_alpha)
-            plt.imshow(q_grid[:,2].reshape((delta,delta)), cmap=green_alpha)
-#            plt.pcolormesh(MX1, MX2, q_grid[:,2].reshape((delta,delta)), alpha=0.5,
-#                    cmap=plt.cm.YlOrBr)
-            plt.ylim([0,delta-1])
-#            plt.xlim([x_min[0], x_max[0]])
-#            plt.ylim([x_min[1], x_max[1]])
+            heatmaps.plot_probabilities(q_grid)
             fig.savefig('{}_heat_map_synthetic_example.pdf'.format(example))
 
+            # SCATTERPLOT OF PREDICTIONS
+            predictions_grid = q_grid >= threshold
+            fig = plt.figure('fbeta_grid')
+            plt.clf()
+            scatterplots.plot_predictions(x_grid, predictions_grid)
+            fig.savefig('{}_prediction_grid_synthetic_example.pdf'.format(example))
 
             # CONTOUR CLASSIFIER 1
-            fig = plt.figure('data_reject')
-            delta = 50
+            fig = plt.figure('validation_data')
             x_min = np.min(r,axis=0)
             x_max = np.max(r,axis=0)
             x1_lin = np.linspace(x_min[0], x_max[0], delta)
