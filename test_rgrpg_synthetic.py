@@ -481,20 +481,26 @@ if __name__ == "__main__":
         jaccard = tp_joint/(tp_joint + fp_joint + fn_joint)
         fig = plt.figure('jaccard')
         plt.clf()
-        plt.plot(thresholds_joint, np.mean(jaccard, axis=1), '.-')
-        plt.plot(thresholds_joint, jaccard, '.-')
+        plt.plot(thresholds_joint, np.mean(jaccard, axis=1), '.-', label='Multi-jaccard')
+        plt.plot(thresholds_joint, jaccard[:,0], '.-', label='Reject')
+        for id_c in range(1,jaccard.shape[1]):
+            plt.plot(thresholds_joint, jaccard[:,id_c], '.-', label='Class {}'.format(id_c))
         plt.xlabel('threshold')
         plt.ylabel('Jaccard')
+        plt.legend(loc='bottom-left')
         fig.savefig('{}_jaccard_synthetic_example.pdf'.format(example))
 
         beta = 1
         fbeta = ((1+beta**2)*tp_joint)/((1+beta**2)*tp_joint + beta**2*fn_joint + fp_joint)
         fig = plt.figure('fbeta')
         plt.clf()
-        plt.plot(thresholds_joint, np.mean(fbeta, axis=1), '.-')
-        plt.plot(thresholds_joint, fbeta, '.-')
+        plt.plot(thresholds_joint, np.mean(fbeta, axis=1), '.-', label='Multi-fbeta')
+        plt.plot(thresholds_joint, fbeta[:,0], '.-', label='Reject')
+        for id_c in range(1,fbeta.shape[1]):
+            plt.plot(thresholds_joint, fbeta[:,id_c], '.-', label='Class {}'.format(id_c))
         plt.xlabel('threshold')
         plt.ylabel('fbeta')
+        plt.legend(loc='bottom-left')
         fig.savefig('{}_fbeta_synthetic_example.pdf'.format(example))
 
         precision = tp_joint/(tp_joint + fp_joint)
@@ -503,7 +509,8 @@ if __name__ == "__main__":
         plt.clf()
         plt.plot(np.mean(recall, axis=1), np.mean(precision, axis=1), '.-',
                 label='Multi-pre-rec')
-        for id_c in range(recall.shape[1]):
+        plt.plot(recall[:,0], precision[:,0], '.-', label='Reject')
+        for id_c in range(1,recall.shape[1]):
             plt.plot(recall[:,id_c], precision[:,id_c], '.-', label='Class {}'.format(id_c))
         plt.xlabel('Recall')
         plt.ylabel('Precision')
@@ -514,7 +521,6 @@ if __name__ == "__main__":
 
 
         if x.shape[1] == 2:
-            threshold = thresholds_joint[-1-np.argmax(np.mean(fbeta, axis=1)[::-1])]
             # FIXME take into account maximum values for training instances
             x_min = np.min(r,axis=0)
             x_max = np.max(r,axis=0)
@@ -533,14 +539,36 @@ if __name__ == "__main__":
             fig = plt.figure('heat_map', frameon=False)
             plt.clf()
             heatmaps.plot_probabilities(q_grid)
+            plt.title('Weighted probabilities')
             fig.savefig('{}_heat_map_synthetic_example.pdf'.format(example))
 
             # SCATTERPLOT OF PREDICTIONS
+            threshold = thresholds_joint[-1-np.argmax(np.mean(fbeta, axis=1)[::-1])]
             predictions_grid = q_grid >= threshold
             fig = plt.figure('fbeta_grid')
             plt.clf()
             scatterplots.plot_predictions(x_grid, predictions_grid)
-            fig.savefig('{}_prediction_grid_synthetic_example.pdf'.format(example))
+            plt.title('Fbeta optimal threshold = {}'.format(threshold))
+            fig.savefig('{}_fbeta_prediction_grid_synthetic_example.pdf'.format(example))
+
+            # SCATTERPLOT OF PREDICTIONS
+            threshold = thresholds_joint[-1-np.argmax(np.mean(jaccard, axis=1)[::-1])]
+            predictions_grid = q_grid >= threshold
+            fig = plt.figure('jaccard_grid')
+            plt.clf()
+            scatterplots.plot_predictions(x_grid, predictions_grid)
+            plt.title('Jaccard optimal threshold = {}'.format(threshold))
+            fig.savefig('{}_jaccard_prediction_grid_synthetic_example.pdf'.format(example))
+
+            # SCATTERPLOT OF PREDICTIONS
+            threshold = thresholds_joint[-1-np.argmax(np.mean(accuracies_joint, axis=1)[::-1])]
+            predictions_grid = q_grid >= threshold
+            fig = plt.figure('accuracies_grid')
+            plt.clf()
+            scatterplots.plot_predictions(x_grid, predictions_grid)
+            plt.title('Accuracy optimal threshold = {}'.format(threshold))
+            fig.savefig('{}_accuracies_prediction_grid_synthetic_example.pdf'.format(example))
+
 
             # CONTOUR CLASSIFIER 1
             fig = plt.figure('validation_data')
@@ -558,4 +586,5 @@ if __name__ == "__main__":
                              p_grid[:,1].reshape(delta,-1), levels, linewidths=3,
                              alpha=0.5)
             plt.clabel(CS, fontsize=15, inline=2)
+            plt.title('Reject model contour lines')
             fig.savefig('{}_synthetic_example_reject_contour.pdf'.format(example))
