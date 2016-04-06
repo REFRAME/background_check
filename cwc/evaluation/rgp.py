@@ -63,9 +63,9 @@ class RGP:
         pos_scores = np.append(np.inf, np.unique(np.append(
             step1_training_scores, step1_reject_scores))[::-1])
         self.thresholds = np.ones(np.alen(pos_scores)) * -1.0
-        self.recalls = np.zeros(np.alen(pos_scores))
-        self.precisions = np.zeros(np.alen(pos_scores))
-        self.gains = np.zeros(np.alen(pos_scores))
+        self.recalls = np.empty(np.alen(pos_scores))
+        self.precisions = np.empty(np.alen(pos_scores))
+        self.gains = np.empty(np.alen(pos_scores))
         self.gain_type = gain
         self.positive_proportion = np.alen(step1_training_scores)/\
             (np.alen(step1_training_scores) + np.alen(step1_reject_scores))
