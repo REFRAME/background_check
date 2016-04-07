@@ -50,10 +50,10 @@ cyan_alpha = LinearSegmentedColormap('CyanAlpha1', cm_ca)
 
 cmaps = [plt.cm.Greys, blue_alpha, yellow_alpha, cyan_alpha, red_alpha]
 
-def plot_probabilities(p):
+def plot_probabilities(p, alpha=1.0):
     delta = np.sqrt(p.shape[0])
     for i in range(p.shape[1]):
-        plt.imshow(p[:,i].reshape((delta,delta)), cmap=cmaps[i])
+        plt.imshow(p[:,i].reshape((delta,delta)), cmap=cmaps[i], alpha=alpha)
 #       plt.pcolormesh(MX1, MX2, q_grid[:,2].reshape((delta,delta)), alpha=0.5,
 #                      cmap=plt.cm.YlOrBr)
     plt.ylim([0,delta-1])
