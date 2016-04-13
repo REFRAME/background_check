@@ -13,6 +13,9 @@ def generate_gaussians(means=[[0,0]], covs=[[[1,0],[0,1]]], samples=[1],
         covs ([[[float]]]): The D-dimensional covariance matrix for each
             Gaussian.
         samples ([int]): The number of samples for each Gaussian.
+        holes ([float]): Specify the radius of a hole per each Gaussian
+        hole_centers ([[float]]): Specifies the center of each hole, if this is
+            not specified the center is selected randomly.
 
     Returns:
         X ([[float]]): A matrix of size sum(samples) times D.
@@ -85,6 +88,130 @@ def test_generate_gaussians():
         ax.scatter(x[index,0], x[index,1], x[index,2], c=c)
 
     plt.show()
+
+
+def generate_example(example=1, hole_centers=None):
+    if example == 1:
+        holes=[2,1]
+        samples = [900,         # Class 1
+                   500]         # Class 2
+        means = [[2,2,2],       # Class 1
+                 [2,2,3]]       # Class 2
+        covs = [[[1,0,0],       # Class 1
+                 [0,2,1],
+                 [0,1,1]],
+                [
+                 [1,1,0],       # Class 2
+                 [1,2,0],
+                 [0,0,1]]]
+    elif example == 2:
+        holes=[2,2,1]
+        samples = [200,         # Class 1
+                   200,         # Class 2
+                   200]         # Class 3
+        means = [[0,0],       # Class 1
+                 [-2,0],       # Class 2
+                 [3,4]]       # Class 3
+        covs = [[[3,-1],       # Class 1
+                 [-1,2]],
+                [[3,0],       # Class 2
+                 [0,3]],
+                [[2,1],       # Class 3
+                 [1,2]]]
+    elif example == 3:
+        holes=[2,1]
+        samples = [900,         # Class 1
+                   50]         # Class 2
+        means = [[0,0],       # Class 1
+                 [7,4]]       # Class 2
+        covs = [[[3,-1],       # Class 1
+                 [-1,2]],
+                [[2,1],       # Class 2
+                 [1,2]]]
+    elif example == 4:
+        holes=[4,5]
+        samples = [900,         # Class 1
+                   800]         # Class 2
+        means = [[0,0,0,0,0,0,0,0,0,0],       # Class 1
+                 [2,2,2,2,2,2,2,2,2,2]]       # Class 2
+        A1 = np.random.rand(10,10)
+        A2 = np.random.rand(10,10)
+        covs = [np.dot(A1,A1.transpose()),
+               np.dot(A2,A2.transpose())]
+    elif example == 5:
+        holes=[2,2,1]
+        samples = [100,         # Class 1
+                   100,         # Class 2
+                   100]         # Class 3
+        means = [[0,0],       # Class 1
+                 [-3,-3],       # Class 2
+                 [2,0]]       # Class 3
+        covs = [[[3,-1],       # Class 1
+                 [-1,2]],
+                [[3,0],       # Class 2
+                 [0,3]],
+                [[2,1],       # Class 3
+                 [1,2]]]
+
+    elif example == 6:
+        holes=[3,0]
+        samples = [1000,         # Class 1
+                   1000]         # Class 2
+        means = [[0,0],       # Class 1
+                 [0,0]]       # Class 2
+        covs = [[[4,0],       # Class 1
+                 [0,4]],
+                [[2,0],       # Class 2
+                 [0,2]]]
+    elif example == 7:
+        holes=[0,0]
+        samples = [1000,         # Class 1
+                   1000]         # Class 2
+        means = [[0,0],       # Class 1
+                 [1,1]]       # Class 2
+        covs = [[[1,0],       # Class 1
+                 [0,1]],
+                [[1,0],       # Class 2
+                 [0,1]]]
+    elif example == 8:
+        holes=[3,2,1,2]
+        samples = [400,         # Class 1
+                   300,         # Class 2
+                   300,         # Class 3
+                   150]         # Class 4
+        means = [[-3,0],       # Class 1
+                 [2,2],       # Class 2
+                 [-3,0],       # Class 3
+                 [3,-4]]       # Class 4
+        covs = [[[3,0.3],       # Class 1
+                 [0.3,2]],
+                [[3,0],       # Class 2
+                 [0,3]],
+                [[1,-0.2],       # Class 3
+                 [-0.2,1]],
+                [[2,-0.5],       # Class 4
+                 [-0.5,2]]]
+    elif example == 9:
+        # TODO add a complex example
+        classes = 2
+        dimensions = 3
+        holes = np.random.rand(classes)*2
+        for c in range(classes):
+            samples = 0
+            means = 0
+            A1 = np.random.rand(dimensions,dimensions)
+            A2 = np.random.rand(dimensions,dimensions)
+            covs = [np.dot(A1,A1.transpose()),
+                   np.dot(A2,A2.transpose())]
+    else:
+        raise Exception('Example {} does not exist'.format(example))
+
+    x, y, hole_centers = generate_gaussians(
+                          means=means, covs=covs, samples=samples, holes=holes,
+                            hole_centers=hole_centers)
+    if example==5:
+        y[y==2] = 1
+    return x, y, hole_centers
 
 if __name__ == '__main__':
     test_generate_gaussians()
