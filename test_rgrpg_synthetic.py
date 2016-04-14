@@ -5,7 +5,7 @@ np.random.seed(42)
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 plt.ion()
-plt.rcParams['figure.figsize'] = (7,6)
+plt.rcParams['figure.figsize'] = (7,4)
 plt.rcParams['figure.autolayout'] = True
 
 from sklearn.mixture import GMM
@@ -21,143 +21,13 @@ from cwc.evaluation.rgrpg import RGRPG
 from cwc.evaluation.rgp import RGP
 from cwc.evaluation.abstaingaincurve import AbstainGainCurve
 from cwc.evaluation.kurwa import Kurwa
+from cwc.evaluation.metrics import average_cross_entropy
+from cwc.evaluation.metrics import composite_average_cross_entropy
+from cwc.evaluation.metrics import compute_cace
 from cwc.visualization import heatmaps
 from cwc.visualization import scatterplots
 
-# FIXME change the holes for optional arguments
-def generate_data(example=1, hole_centers=None):
-    if example == 1:
-        holes=[2,1]
-        samples = [900,         # Class 1
-                   500]         # Class 2
-        means = [[2,2,2],       # Class 1
-                 [2,2,3]]       # Class 2
-        covs = [[[1,0,0],       # Class 1
-                 [0,2,1],
-                 [0,1,1]],
-                [
-                 [1,1,0],       # Class 2
-                 [1,2,0],
-                 [0,0,1]]]
-    elif example == 2:
-        holes=[2,2,1]
-        samples = [200,         # Class 1
-                   200,         # Class 2
-                   200]         # Class 3
-        means = [[0,0],       # Class 1
-                 [-2,0],       # Class 2
-                 [3,4]]       # Class 3
-        covs = [[[3,-1],       # Class 1
-                 [-1,2]],
-                [[3,0],       # Class 2
-                 [0,3]],
-                [[2,1],       # Class 3
-                 [1,2]]]
-    elif example == 3:
-        holes=[2,1]
-        samples = [900,         # Class 1
-                   50]         # Class 2
-        means = [[0,0],       # Class 1
-                 [7,4]]       # Class 2
-        covs = [[[3,-1],       # Class 1
-                 [-1,2]],
-                [[2,1],       # Class 2
-                 [1,2]]]
-    elif example == 4:
-        holes=[4,5]
-        samples = [900,         # Class 1
-                   800]         # Class 2
-        means = [[0,0,0,0,0,0,0,0,0,0],       # Class 1
-                 [2,2,2,2,2,2,2,2,2,2]]       # Class 2
-        A1 = np.random.rand(10,10)
-        A2 = np.random.rand(10,10)
-        covs = [np.dot(A1,A1.transpose()),
-               np.dot(A1,A1.transpose())]
-    elif example == 5:
-        holes=[2,2,1]
-        samples = [100,         # Class 1
-                   100,         # Class 2
-                   100]         # Class 3
-        means = [[0,0],       # Class 1
-                 [-3,-3],       # Class 2
-                 [2,0]]       # Class 3
-        covs = [[[3,-1],       # Class 1
-                 [-1,2]],
-                [[3,0],       # Class 2
-                 [0,3]],
-                [[2,1],       # Class 3
-                 [1,2]]]
-
-    elif example == 6:
-        holes=[3,0]
-        samples = [1000,         # Class 1
-                   1000]         # Class 2
-        means = [[0,0],       # Class 1
-                 [0,0]]       # Class 2
-        covs = [[[4,0],       # Class 1
-                 [0,4]],
-                [[2,0],       # Class 2
-                 [0,2]]]
-    elif example == 7:
-        holes=[0,0]
-        samples = [1000,         # Class 1
-                   1000]         # Class 2
-        means = [[0,0],       # Class 1
-                 [1,1]]       # Class 2
-        covs = [[[1,0],       # Class 1
-                 [0,1]],
-                [[1,0],       # Class 2
-                 [0,1]]]
-    elif example == 8:
-        holes=[3,2,1,2]
-        samples = [400,         # Class 1
-                   300,         # Class 2
-                   300,         # Class 3
-                   150]         # Class 4
-        means = [[-3,0],       # Class 1
-                 [2,2],       # Class 2
-                 [-3,0],       # Class 3
-                 [3,-4]]       # Class 4
-        covs = [[[3,0.3],       # Class 1
-                 [0.3,2]],
-                [[3,0],       # Class 2
-                 [0,3]],
-                [[1,-0.2],       # Class 3
-                 [-0.2,1]],
-                [[2,-0.5],       # Class 4
-                 [-0.5,2]]]
-    else:
-        raise Exception('Example {} does not exist'.format(example))
-
-    x, y, hole_centers = toy_examples.generate_gaussians(
-                          means=means, covs=covs, samples=samples, holes=holes,
-                            hole_centers=hole_centers)
-    if example==5:
-        y[y==2] = 1
-    return x, y, hole_centers
-
-
-
-
-def average_cross_entropy(p,q):
-    return - np.mean(p*np.log(np.clip(q, 1e-16, 1.0)))
-
-
-def composite_average_cross_entropy(p1,q1,p2,q2):
-    return average_cross_entropy(p1,q1) + average_cross_entropy(p2,q2)
-
-
-def compute_cace(c1_rs, c1_ts, c2_ts, y):
-    q1 = np.vstack([c1_rs, c1_ts])
-    p1 = np.vstack([np.ones((len(c1_rs),1)), np.zeros((len(c1_ts),1))])
-    p1 = np.hstack([p1, 1-p1])
-
-    q2 = c2_ts
-    p2 = label_binarize(y, np.unique(y))
-    ace1 = average_cross_entropy(p1,q1)
-    ace2 = average_cross_entropy(p2,q2)
-    return ace1, ace2, ace1+ace2
-
+from diary import Diary
 
 def train_reject_model(x, r):
     """Train a classifier of training points
@@ -166,7 +36,7 @@ def train_reject_model(x, r):
     points and low probability values for reject points.
     """
     model_rej = svm.SVC(probability=True)
-    #model_rej = tree.DecisionTreeClassifier(max_depth=7)
+    #model_rej = tree.DecisionTreeClassifier(max_depth=3)
 
     xr = np.vstack((x,r))
     y = np.hstack((np.ones(np.alen(x)), np.zeros(np.alen(r)))).T
@@ -177,18 +47,23 @@ def train_reject_model(x, r):
 
 def train_classifier_model(x,y):
     model_clas = svm.SVC(probability=True)
-    #model_clas = tree.DecisionTreeClassifier(max_depth=2)
+    #model_clas = tree.DecisionTreeClassifier(max_depth=3)
     model_clas = model_clas.fit(x,y)
     return model_clas
 
 
 if __name__ == "__main__":
+    diary = Diary(name='test_rgrpg', path='results', overwrite=False,
+                  fig_format='svg')
+    diary.add_notebook('training')
+    diary.add_notebook('validation')
+
     # for i in  [6]: #range(1,4):
     n_iterations = 1
     n_thresholds = 100
     accuracies = np.empty((n_iterations, n_thresholds))
     recalls = np.empty((n_iterations, n_thresholds))
-    for example in [2,3,5,6,7,8]:
+    for example in [2,3,4,5,6,7,8,9]:
         np.random.seed(42)
         print('Runing example = {}'.format(example))
         for iteration in range(n_iterations):
@@ -196,82 +71,101 @@ if __name__ == "__main__":
             #####################################################
             # TRAINING                                          #
             #####################################################
-            x, y, hole_centers = generate_data(example)
+            x, y, hole_centers = toy_examples.generate_example(example)
             r = reject.create_reject_data(x, proportion=1, method='uniform_hsphere',
                                           pca=True, pca_variance=0.99, pca_components=0,
                                           hshape_cov=0, hshape_prop_in=0.99,
                                           hshape_multiplier=1.5)
+            n_samples = len(y)
+            x_train = x[:int(n_samples/2),:]
+            y_train = y[:int(n_samples/2)]
+            r_train = r[:int(n_samples/2),:]
 
             fig = plt.figure('training_data')
             fig.clf()
-            scatterplots.plot_data_and_reject(x,y,r,fig)
-            fig.savefig('{}_training_data_synthetic_example.pdf'.format(example))
+            scatterplots.plot_data_and_reject(x_train,y_train,r_train,fig=fig)
+            diary.save_figure(fig,'{}_training_data_synthetic_example.pdf'.format(example))
 
             # Classifier of reject data
-            model_rej = train_reject_model(x, r)
+            model_rej = train_reject_model(x_train, r_train)
 
             # Classifier of training data
-            model_clas = train_classifier_model(x, y)
+            model_clas = train_classifier_model(x_train, y_train)
 
             # TRAINING SCORES
-            c1_rs = model_rej.predict_proba(r)
-            c1_ts = model_rej.predict_proba(x)
-            c2_ts = model_clas.predict_proba(x)
+            c1_rs = model_rej.predict_proba(r_train)
+            c1_ts = model_rej.predict_proba(x_train)
+            c2_ts = model_clas.predict_proba(x_train)
 
-            ace1, ace2, cace = compute_cace(c1_rs, c1_ts, c2_ts, y)
+            ace1, ace2, cace = compute_cace(c1_rs, c1_ts, c2_ts, y_train)
 
             print('TRAIN RESULTS')
             print('Step1 Average Cross-entropy = {}'.format(ace1))
             print('Step2 Average Cross-entropy = {}'.format(ace2))
             print('Composite Average Cross-entropy = {}'.format(cace))
+            diary.add_entry('training', ['Example', example,
+                                         'Iteration', iteration,
+                                         'Step1 ACE', ace1])
+            diary.add_entry('training', ['Example', example,
+                                         'Iteration', iteration,
+                                         'Step2 ACE', ace2])
+            diary.add_entry('training', ['Example', example,
+                                         'Iteration', iteration,
+                                         'Composite ACE', cace])
 
             step1_reject_scores = c1_rs[:,1]
             step1_training_scores = c1_ts[:,1]
             step2_training_scores = c2_ts[:,1]
-            training_labels = y
+            training_labels = y_train
 
             print("Step1 Accuracy = {} (prior = {})".format(
                 (np.sum(step1_reject_scores < 0.5) +
-                 np.sum(step1_training_scores >= 0.5))/(np.alen(x)+np.alen(r)),
-                 np.max([np.alen(x),np.alen(r)])/(np.alen(x)+np.alen(r))))
+                 np.sum(step1_training_scores >=
+                     0.5))/(np.alen(x_train)+np.alen(r_train)),
+                 np.max([np.alen(x_train),np.alen(r_train)])/(np.alen(x_train)+np.alen(r_train))))
 
             print("Step2 Accuracy = {} (prior = {})".format(
-                np.mean(np.argmax(c2_ts, axis=1) == y),
-                np.max([1-np.mean(y), np.mean(y)])))
+                np.mean(np.argmax(c2_ts, axis=1) == y_train),
+                np.max([1-np.mean(y_train), np.mean(y_train)])))
 
 
             #####################################################
             # VALIDATION                                        #
             #####################################################
-            # FIXME the validation data does not have the hole in the same
-            # position as the training data
-            x, y, hole_centers = generate_data(example, hole_centers)
-            r = reject.create_reject_data(x, proportion=1, method='uniform_hsphere',
-                                          pca=True, pca_variance=0.99, pca_components=0,
-                                          hshape_cov=0, hshape_prop_in=0.99,
-                                          hshape_multiplier=1.5)
+            x_valid = x[int(n_samples/2):,:]
+            y_valid = y[int(n_samples/2):]
+            r_valid = r[int(n_samples/2):,:]
 
             fig = plt.figure('validation_data')
             fig.clf()
-            scatterplots.plot_data_and_reject(x,y,r,fig)
-            fig.savefig('{}_validation_data_synthetic_example.pdf'.format(example))
+            scatterplots.plot_data_and_reject(x_valid,y_valid,r_valid,fig=fig)
+            diary.save_figure(fig,'{}_validation_data_synthetic_example.pdf'.format(example))
 
             # TEST SCORES
-            c1_rs = model_rej.predict_proba(r)
-            c1_ts = model_rej.predict_proba(x)
-            c2_ts = model_clas.predict_proba(x)
+            c1_rs = model_rej.predict_proba(r_valid)
+            c1_ts = model_rej.predict_proba(x_valid)
+            c2_ts = model_clas.predict_proba(x_valid)
 
-            ace1, ace2, cace = compute_cace(c1_rs, c1_ts, c2_ts, y)
+            ace1, ace2, cace = compute_cace(c1_rs, c1_ts, c2_ts, y_valid)
 
             print('TEST RESULTS')
             print('Step1 Average Cross-entropy = {}'.format(ace1))
             print('Step2 Average Cross-entropy = {}'.format(ace2))
             print('Composite Average Cross-entropy = {}'.format(cace))
+            diary.add_entry('validation', ['Example', example,
+                                           'Iteration', iteration,
+                                           'Step1 ACE', ace1])
+            diary.add_entry('validation', ['Example', example,
+                                           'Iteration', iteration,
+                                           'Step2 ACE', ace2])
+            diary.add_entry('validation', ['Example', example,
+                                           'Iteration', iteration,
+                                           'Composite ACE', cace])
 
             step1_reject_scores = c1_rs[:,1]
             step1_training_scores = c1_ts[:,1]
             step2_training_scores = c2_ts[:,1]
-            training_labels = y
+            training_labels = y_valid
 
             # Show scores
             # fig = plt.figure('scores')
@@ -287,12 +181,13 @@ if __name__ == "__main__":
             # Accuracy
             print("Step1 Accuracy = {} (prior = {})".format(
                 (np.sum(step1_reject_scores < 0.5) +
-                 np.sum(step1_training_scores >= 0.5))/(np.alen(x)+np.alen(r)),
-                 np.max([np.alen(x),np.alen(r)])/(np.alen(x)+np.alen(r))))
+                 np.sum(step1_training_scores >=
+                     0.5))/(np.alen(x_valid)+np.alen(r_valid)),
+                 np.max([np.alen(x_valid),np.alen(r_valid)])/(np.alen(x_valid)+np.alen(r_valid))))
 
             print("Step2 Accuracy = {} (prior = {})".format(
-                np.mean(np.argmax(c2_ts, axis=1) == y),
-                np.max([1-np.mean(y), np.mean(y)])))
+                np.mean(np.argmax(c2_ts, axis=1) == y_valid),
+                np.max([1-np.mean(y_valid), np.mean(y_valid)])))
 
             # Volume under the PRG-ROC surface
             # rgrpg = RGRPG(step1_reject_scores, step1_training_scores,
@@ -324,7 +219,7 @@ if __name__ == "__main__":
         plt.ylabel('$E[Accuracy]$')
         plt.xlim([-0.01,1.01])
         plt.ylim([0,1])
-        fig.savefig('{}_exp_rec_acc_synthetic_example.pdf'.format(example))
+        diary.save_figure(fig,'{}_exp_rec_acc_synthetic_example.pdf'.format(example))
 
         # Area under the RGP curve
         rgp = RGP(step1_reject_scores, step1_training_scores,
@@ -334,19 +229,19 @@ if __name__ == "__main__":
         fig = plt.figure('RGP_acc')
         fig.clf()
         rgp.plot(fig, accuracy=True)
-        fig.savefig('{}_rgp_acc_synthetic_example.pdf'.format(example))
+        diary.save_figure(fig,'{}_rgp_acc_synthetic_example.pdf'.format(example))
 
         print("Area = {}".format(rgp.calculate_area()))
         fig = plt.figure('RGP_pre')
         fig.clf()
         rgp.plot(fig, precision=True)
-        fig.savefig('{}_rgp_pre_synthetic_example.pdf'.format(example))
+        diary.save_figure(fig,'{}_rgp_pre_synthetic_example.pdf'.format(example))
 
         print("Area = {}".format(rgp.calculate_area()))
         fig = plt.figure('RGP')
         fig.clf()
         rgp.plot(fig)
-        fig.savefig('{}_rgp_synthetic_example.pdf'.format(example))
+        diary.save_figure(fig,'{}_rgp_synthetic_example.pdf'.format(example))
 
         ag = AbstainGainCurve(step1_reject_scores, step1_training_scores,
                   step2_training_scores, training_labels)
@@ -355,7 +250,7 @@ if __name__ == "__main__":
         fig = plt.figure('AG')
         fig.clf()
         ag.plot(fig)
-        fig.savefig('{}_ag_synthetic_example.pdf'.format(example))
+        diary.save_figure(fig,'{}_ag_synthetic_example.pdf'.format(example))
 
         print("Optimal threshold for the first classifier = {}".format(rgp.get_optimal_step1_threshold()))
 
@@ -364,7 +259,7 @@ if __name__ == "__main__":
         fig.clf()
         rgrpg = RGRPG(step1_reject_scores, step1_training_scores, step2_training_scores, training_labels)
         rgrpg.plot_simple_3d(fig)
-        fig.savefig('{}_rg1_pg1_acc2_synthetic_example.pdf'.format(example))
+        diary.save_figure(fig,'{}_rg1_pg1_acc2_synthetic_example.pdf'.format(example))
 
         print("ROC_curve_classifier_1")
         fig = plt.figure('ROC_curve_classifier_1')
@@ -375,11 +270,12 @@ if __name__ == "__main__":
                                                        step1_training_scores))
         area = auc(fpr, tpr)
         print('AUC Classifier 1 = {}'.format(area))
-        print('PRGA Classifier 1 = {}'.format(rgrpg.prga))
+        # FIXME there is a problem with some decision trees
+        #print('PRGA Classifier 1 = {}'.format(rgrpg.prga))
         plt.plot(fpr, tpr, 'k.-')
         plt.xlabel('$FPr_1$')
         plt.ylabel('$TPr_1$')
-        fig.savefig('{}_roc_clas1_synthetic_example.pdf'.format(example))
+        diary.save_figure(fig,'{}_roc_clas1_synthetic_example.pdf'.format(example))
 
         thresholds_1 = thresholds_1[thresholds_1 <= 1][::-1]
         ace1s = np.empty_like(thresholds_1)
@@ -397,7 +293,7 @@ if __name__ == "__main__":
             c1_ts[step1_training_scores < t1] = 0
             c1_ts = np.vstack([1-c1_ts, c1_ts]).transpose()
 
-            ace1, ace2, cace = compute_cace(c1_rs, c1_ts, c2_ts, y)
+            ace1, ace2, cace = compute_cace(c1_rs, c1_ts, c2_ts, y_valid)
             ace1s[i_t1] = ace1
             ace2s[i_t1] = ace2
             caces[i_t1] = cace
@@ -413,14 +309,14 @@ if __name__ == "__main__":
         plt.ylabel('log-loss')
         plt.xlim([1,0])
         plt.legend()
-        fig.savefig('{}_log_loss_synthetic_example.pdf'.format(example))
+        diary.save_figure(fig,'{}_log_loss_synthetic_example.pdf'.format(example))
 
         # Reducing the problem to three probabilities encoding:
         # Reject, Train*positive, Train*negative
-        c1_rs = model_rej.predict_proba(r)
-        c1_ts = model_rej.predict_proba(x)
-        c2_rs = model_clas.predict_proba(r)
-        c2_ts = model_clas.predict_proba(x)
+        c1_rs = model_rej.predict_proba(r_valid)
+        c1_ts = model_rej.predict_proba(x_valid)
+        c2_rs = model_clas.predict_proba(r_valid)
+        c2_ts = model_clas.predict_proba(x_valid)
 
         step1_reject_scores = c1_rs[:,1]
         step1_training_scores = c1_ts[:,1]
@@ -433,7 +329,7 @@ if __name__ == "__main__":
         p1 = np.vstack([np.ones((len(c1_rs),1)), np.zeros((len(c1_ts),1))])
 
         q2 = np.vstack([step2_reject_scores, step2_training_scores])
-        p2 = label_binarize(y, np.unique(y))
+        p2 = label_binarize(y_valid, np.unique(y))
         # label binarize creates [n_samples, n_classes] for n_classes > 2
         # and [n_samples, 1] for n_classes = 2
         if p2.shape[1] == 1:
@@ -466,17 +362,29 @@ if __name__ == "__main__":
         plt.ylabel('Accuracy')
         plt.legend(loc='lower right')
         plt.ylim([0,1])
-        fig.savefig('{}_combined_accuracy_synthetic_example.pdf'.format(example))
+        diary.save_figure(fig,'{}_combined_accuracy_synthetic_example.pdf'.format(example))
 
         thresholds_joint = np.linspace(0,1,100)
-        tp_joint = np.empty((len(thresholds_joint), p.shape[1]))
-        fp_joint = np.empty((len(thresholds_joint), p.shape[1]))
-        fn_joint = np.empty((len(thresholds_joint), p.shape[1]))
+        averaging = 'micro'
+        if averaging == 'micro':
+            axis = None
+            measure_shape = (len(thresholds_joint), 1)
+        elif averaging == 'macro':
+            axis = 0
+            measure_shape = (len(thresholds_joint), p.shape[1])
+        elif averaging == 'instance':
+            axis = 1
+            measure_shape = (len(thresholds_joint), p.shape[0])
+        else:
+            raise Exception('Averaging \'{}\' not implemented'.format(averaging))
+        tp_joint = np.empty(measure_shape)
+        fp_joint = np.empty(measure_shape)
+        fn_joint = np.empty(measure_shape)
         for i, threshold in enumerate(thresholds_joint):
             prediction = (q >= threshold)
-            tp_joint[i] = np.mean(np.logical_and(prediction, p), axis=0)
-            fp_joint[i] = np.mean(np.logical_and(prediction, 1-p), axis=0)
-            fn_joint[i] = np.mean(np.logical_and(1-prediction, p), axis=0)
+            tp_joint[i] = np.mean(np.logical_and(prediction, p), axis=axis)
+            fp_joint[i] = np.mean(np.logical_and(prediction, 1-p), axis=axis)
+            fn_joint[i] = np.mean(np.logical_and(1-prediction, p), axis=axis)
 
         jaccard = tp_joint/(tp_joint + fp_joint + fn_joint)
         fig = plt.figure('jaccard')
@@ -488,20 +396,20 @@ if __name__ == "__main__":
         plt.xlabel('threshold')
         plt.ylabel('Jaccard')
         plt.legend(loc='bottom-left')
-        fig.savefig('{}_jaccard_synthetic_example.pdf'.format(example))
+        diary.save_figure(fig,'{}_jaccard_synthetic_example.pdf'.format(example))
 
         beta = 1
         fbeta = ((1+beta**2)*tp_joint)/((1+beta**2)*tp_joint + beta**2*fn_joint + fp_joint)
         fig = plt.figure('fbeta')
         plt.clf()
-        plt.plot(thresholds_joint, np.mean(fbeta, axis=1), '.-', label='Multi-fbeta')
+        plt.plot(thresholds_joint, fbeta.shape[1]/np.sum(1/fbeta, axis=1), '.-', label='Multi-fbeta')
         plt.plot(thresholds_joint, fbeta[:,0], '.-', label='Reject')
         for id_c in range(1,fbeta.shape[1]):
             plt.plot(thresholds_joint, fbeta[:,id_c], '.-', label='Class {}'.format(id_c))
         plt.xlabel('threshold')
-        plt.ylabel('fbeta')
+        plt.ylabel('$F_{}$'.format("{"+str(beta)+"}"))
         plt.legend(loc='bottom-left')
-        fig.savefig('{}_fbeta_synthetic_example.pdf'.format(example))
+        diary.save_figure(fig,'{}_fbeta_synthetic_example.pdf'.format(example))
 
         precision = tp_joint/(tp_joint + fp_joint)
         recall = tp_joint/(tp_joint + fn_joint)
@@ -517,14 +425,14 @@ if __name__ == "__main__":
         plt.ylim([0,1])
         plt.xlim([0,1])
         plt.legend(loc='bottom-left')
-        fig.savefig('{}_pre_rec_synthetic_example.pdf'.format(example))
+        diary.save_figure(fig,'{}_pre_rec_synthetic_example.pdf'.format(example))
 
 
-        if x.shape[1] == 2:
+        if x_valid.shape[1] == 2:
             # FIXME take into account maximum values for training instances
-            x_min = np.min(r,axis=0)
-            x_max = np.max(r,axis=0)
-            delta = 70
+            x_min = np.min(r_valid,axis=0)
+            x_max = np.max(r_valid,axis=0)
+            delta = 60
             x1_lin = np.linspace(x_min[0], x_max[0], delta)
             x2_lin = np.linspace(x_min[1], x_max[1], delta)
 
@@ -533,14 +441,23 @@ if __name__ == "__main__":
             q1_grid =  model_rej.predict_proba(x_grid)
             q2_grid =  model_clas.predict_proba(x_grid)
 
-            q_grid = np.hstack([np.expand_dims(q1_grid[:,0], axis=1), (q2_grid.T*q1_grid[:,1]).T])
+            q_grid = np.hstack([np.expand_dims(q1_grid[:,0], axis=1), q2_grid])
 
             # HEATMAP OF PROBABILITIES
-            fig = plt.figure('heat_map', frameon=False)
+            fig = plt.figure('heat_map_nw', frameon=False)
             plt.clf()
             heatmaps.plot_probabilities(q_grid)
-            plt.title('Weighted probabilities')
-            fig.savefig('{}_heat_map_synthetic_example.pdf'.format(example))
+            plt.title('Probabilities')
+            diary.save_figure(fig,'{}_heat_map_nw_synthetic_example.pdf'.format(example))
+
+            #q_grid = np.hstack([np.expand_dims(q1_grid[:,0], axis=1), (q2_grid.T*q1_grid[:,1]).T])
+
+            # HEATMAP OF WEIGHTED PROBABILITIES
+            #fig = plt.figure('heat_map_w', frameon=False)
+            #plt.clf()
+            #heatmaps.plot_probabilities(q_grid)
+            #plt.title('Weighted probabilities')
+            #diary.save_figure(fig,'{}_heat_map_w_synthetic_example.pdf'.format(example))
 
             # SCATTERPLOT OF PREDICTIONS
             threshold = thresholds_joint[-1-np.argmax(np.mean(fbeta, axis=1)[::-1])]
@@ -548,8 +465,8 @@ if __name__ == "__main__":
             fig = plt.figure('fbeta_grid')
             plt.clf()
             scatterplots.plot_predictions(x_grid, predictions_grid)
-            plt.title('Fbeta optimal threshold = {}'.format(threshold))
-            fig.savefig('{}_fbeta_prediction_grid_synthetic_example.pdf'.format(example))
+            plt.title('$F_{}$ optimal threshold = {}'.format("{"+str(beta)+"}", threshold))
+            diary.save_figure(fig,'{}_fbeta_prediction_grid_synthetic_example.pdf'.format(example))
 
             # SCATTERPLOT OF PREDICTIONS
             threshold = thresholds_joint[-1-np.argmax(np.mean(jaccard, axis=1)[::-1])]
@@ -558,7 +475,7 @@ if __name__ == "__main__":
             plt.clf()
             scatterplots.plot_predictions(x_grid, predictions_grid)
             plt.title('Jaccard optimal threshold = {}'.format(threshold))
-            fig.savefig('{}_jaccard_prediction_grid_synthetic_example.pdf'.format(example))
+            diary.save_figure(fig,'{}_jaccard_prediction_grid_synthetic_example.pdf'.format(example))
 
             # SCATTERPLOT OF PREDICTIONS
             threshold = thresholds_joint[-1-np.argmax(np.mean(accuracies_joint, axis=1)[::-1])]
@@ -567,13 +484,21 @@ if __name__ == "__main__":
             plt.clf()
             scatterplots.plot_predictions(x_grid, predictions_grid)
             plt.title('Accuracy optimal threshold = {}'.format(threshold))
-            fig.savefig('{}_accuracies_prediction_grid_synthetic_example.pdf'.format(example))
+            diary.save_figure(fig,'{}_accuracies_prediction_grid_synthetic_example.pdf'.format(example))
 
+            # SCATTERPLOT OF ARGMAX PREDICTIONS
+            predictions_grid = label_binarize(q_grid.argmax(axis=1),
+                    range(q_grid.shape[1])).astype('bool')
+            fig = plt.figure('argmax_grid')
+            plt.clf()
+            scatterplots.plot_predictions(x_grid, predictions_grid)
+            plt.title('Argmax')
+            diary.save_figure(fig,'{}_argmax_prediction_grid_synthetic_example.pdf'.format(example))
 
             # CONTOUR CLASSIFIER 1
             fig = plt.figure('validation_data')
-            x_min = np.min(r,axis=0)
-            x_max = np.max(r,axis=0)
+            x_min = np.min(r_valid,axis=0)
+            x_max = np.max(r_valid,axis=0)
             x1_lin = np.linspace(x_min[0], x_max[0], delta)
             x2_lin = np.linspace(x_min[1], x_max[1], delta)
 
@@ -587,4 +512,4 @@ if __name__ == "__main__":
                              alpha=0.5)
             plt.clabel(CS, fontsize=15, inline=2)
             plt.title('Reject model contour lines')
-            fig.savefig('{}_synthetic_example_reject_contour.pdf'.format(example))
+            diary.save_figure(fig,'{}_synthetic_example_reject_contour.pdf'.format(example))
