@@ -48,7 +48,9 @@ cm_ca = {'red': ((0.0, 1.0, 1.0),
                   (1.0, 1.0, 1.0))}
 cyan_alpha = LinearSegmentedColormap('CyanAlpha1', cm_ca)
 
-cmaps = [plt.cm.Greys, blue_alpha, yellow_alpha, cyan_alpha, red_alpha]
+cmaps = [plt.cm.Greys, blue_alpha, yellow_alpha, cyan_alpha, red_alpha,
+        blue_alpha, yellow_alpha, cyan_alpha, red_alpha, blue_alpha,
+        yellow_alpha, cyan_alpha, red_alpha]
 
 def plot_probabilities(p, alpha=1.0):
     delta = np.sqrt(p.shape[0])
