@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 
 def generate_gaussians(means=[[0,0]], covs=[[[1,0],[0,1]]], samples=[1],
-                       holes=[0,0], hole_centers=None):
+                       holes=[0,0], hole_centers=None, shuffle=True):
     """This function generates N Gaussian distributions with the specified
         mean, covariance and number of samples per Gaussian.
 
@@ -31,7 +31,7 @@ def generate_gaussians(means=[[0,0]], covs=[[[1,0],[0,1]]], samples=[1],
         holes = np.zeros(num_classes)
 
     X = np.empty(shape=(sum(samples),np.shape(means)[1]))
-    Y = np.empty(shape=(sum(samples)))
+    Y = np.empty(shape=(sum(samples)), dtype=int)
     cumsum = 0
     if hole_centers == None:
         hole_centers = np.empty_like(means)
@@ -66,9 +66,10 @@ def generate_gaussians(means=[[0,0]], covs=[[[1,0],[0,1]]], samples=[1],
 
         cumsum = new_cumsum
 
-    rand_indices = np.random.permutation(range(cumsum))
-    X = X[rand_indices,:]
-    Y = Y[rand_indices]
+    if shuffle:
+        rand_indices = np.random.permutation(range(cumsum))
+        X = X[rand_indices,:]
+        Y = Y[rand_indices]
 
     return X, Y, hole_centers
 
@@ -93,8 +94,8 @@ def test_generate_gaussians():
 def generate_example(example=1, hole_centers=None):
     if example == 1:
         holes=[2,1]
-        samples = [900,         # Class 1
-                   500]         # Class 2
+        samples = [1800,         # Class 1
+                   1000]         # Class 2
         means = [[2,2,2],       # Class 1
                  [2,2,3]]       # Class 2
         covs = [[[1,0,0],       # Class 1
@@ -106,9 +107,9 @@ def generate_example(example=1, hole_centers=None):
                  [0,0,1]]]
     elif example == 2:
         holes=[2,2,1]
-        samples = [200,         # Class 1
-                   200,         # Class 2
-                   200]         # Class 3
+        samples = [400,         # Class 1
+                   400,         # Class 2
+                   400]         # Class 3
         means = [[0,0],       # Class 1
                  [-2,0],       # Class 2
                  [3,4]]       # Class 3
@@ -120,8 +121,8 @@ def generate_example(example=1, hole_centers=None):
                  [1,2]]]
     elif example == 3:
         holes=[2,1]
-        samples = [900,         # Class 1
-                   50]         # Class 2
+        samples = [1800,         # Class 1
+                   100]         # Class 2
         means = [[0,0],       # Class 1
                  [7,4]]       # Class 2
         covs = [[[3,-1],       # Class 1
@@ -130,8 +131,8 @@ def generate_example(example=1, hole_centers=None):
                  [1,2]]]
     elif example == 4:
         holes=[4,5]
-        samples = [900,         # Class 1
-                   800]         # Class 2
+        samples = [1800,         # Class 1
+                   1600]         # Class 2
         means = [[0,0,0,0,0,0,0,0,0,0],       # Class 1
                  [2,2,2,2,2,2,2,2,2,2]]       # Class 2
         A1 = np.random.rand(10,10)
@@ -140,9 +141,9 @@ def generate_example(example=1, hole_centers=None):
                np.dot(A2,A2.transpose())]
     elif example == 5:
         holes=[2,2,1]
-        samples = [100,         # Class 1
-                   100,         # Class 2
-                   100]         # Class 3
+        samples = [200,         # Class 1
+                   200,         # Class 2
+                   200]         # Class 3
         means = [[0,0],       # Class 1
                  [-3,-3],       # Class 2
                  [2,0]]       # Class 3
@@ -155,8 +156,8 @@ def generate_example(example=1, hole_centers=None):
 
     elif example == 6:
         holes=[3,0]
-        samples = [1000,         # Class 1
-                   1000]         # Class 2
+        samples = [2000,         # Class 1
+                   2000]         # Class 2
         means = [[0,0],       # Class 1
                  [0,0]]       # Class 2
         covs = [[[4,0],       # Class 1
@@ -165,8 +166,8 @@ def generate_example(example=1, hole_centers=None):
                  [0,2]]]
     elif example == 7:
         holes=[0,0]
-        samples = [1000,         # Class 1
-                   1000]         # Class 2
+        samples = [2000,         # Class 1
+                   2000]         # Class 2
         means = [[0,0],       # Class 1
                  [1,1]]       # Class 2
         covs = [[[1,0],       # Class 1
@@ -175,10 +176,10 @@ def generate_example(example=1, hole_centers=None):
                  [0,1]]]
     elif example == 8:
         holes=[3,2,1,2]
-        samples = [400,         # Class 1
-                   300,         # Class 2
-                   300,         # Class 3
-                   150]         # Class 4
+        samples = [800,         # Class 1
+                   600,         # Class 2
+                   600,         # Class 3
+                   300]         # Class 4
         means = [[-3,0],       # Class 1
                  [2,2],       # Class 2
                  [-3,0],       # Class 3
@@ -192,17 +193,14 @@ def generate_example(example=1, hole_centers=None):
                 [[2,-0.5],       # Class 4
                  [-0.5,2]]]
     elif example == 9:
-        # TODO add a complex example
-        classes = 2
-        dimensions = 3
+        classes = 5
+        dimensions = 10
         holes = np.random.rand(classes)*2
-        for c in range(classes):
-            samples = 0
-            means = 0
-            A1 = np.random.rand(dimensions,dimensions)
-            A2 = np.random.rand(dimensions,dimensions)
-            covs = [np.dot(A1,A1.transpose()),
-                   np.dot(A2,A2.transpose())]
+        samples = np.random.randint(1000,1001,classes)
+        means = np.random.rand(classes, dimensions)*2
+        covs = (np.random.rand(classes, dimensions, dimensions)-0.5)*2
+        for i, cov in enumerate(covs):
+            covs[i] = np.dot(cov, cov.transpose())
     else:
         raise Exception('Example {} does not exist'.format(example))
 
