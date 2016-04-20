@@ -15,16 +15,17 @@ from sklearn.preprocessing import label_binarize
 from sklearn.metrics import roc_curve
 from sklearn.metrics import auc
 from sklearn.cross_validation import train_test_split
+from sklearn.preprocessing import StandardScaler
 
 from cwc.synthetic_data import toy_examples
 from cwc.synthetic_data import reject
 from cwc.evaluation.rgrpg import RGRPG
 from cwc.evaluation.rgp import RGP
 from cwc.evaluation.abstaingaincurve import AbstainGainCurve
-from cwc.evaluation.kurwa import Kurwa
 from cwc.evaluation.metrics import average_cross_entropy
 from cwc.evaluation.metrics import composite_average_cross_entropy
 from cwc.evaluation.metrics import compute_cace
+from cwc.evaluation.metrics import calculate_mo_ce
 from cwc.visualization import heatmaps
 from cwc.visualization import scatterplots
 
@@ -56,182 +57,181 @@ def train_classifier_model(x,y):
 if __name__ == "__main__":
     diary = Diary(name='digits_vs_letters', path='results', overwrite=False,
                   fig_format='svg')
-    diary.add_notebook('training')
-    diary.add_notebook('validation')
+    diary.add_notebook('training', verbose=True)
+    diary.add_notebook('validation', verbose=True)
 
-    # for i in  [6]: #range(1,4):
-    n_iterations = 1
     n_thresholds = 100
 
     #####################################################
     # TRAINING                                          #
     #####################################################
-    x = np.load('datasets/mnist_h_fc1_no_relu.npy')
+    x_train_h = np.load('datasets/mnist_train_h_fc1_no_relu.npy')
+    x_train_y = np.load('datasets/mnist_train_y.npy')
+    n_classes = x_train_y.shape[1]
+    x_train = np.hstack([x_train_h, x_train_y])
+    x_train_h = None
+
+
+    scaler = StandardScaler().fit(x_train)
+    x_train = scaler.transform(x_train)
+
     mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
-    y = mnist.train.labels.argmax(axis=1)
-    x_train, x_valid, y_train, y_valid = train_test_split(x,y,train_size=10000, stratify=y)
+    y_train = mnist.train.labels.argmax(axis=1)
+    y_valid = mnist.validation.labels.argmax(axis=1)
+    mnist = None
+    indices = np.random.choice(range(len(x_train)), 5000, replace=False)
+    x_train = x_train[indices]
+    y_train = y_train[indices]
+    x_train_y = x_train_y[indices]
 
-    x_valid = x_valid[:10000]
-    y_valid = y_valid[:10000]
-
-    r = reject.create_reject_data(x_train, proportion=2, method='uniform_hsphere',
-                                  pca=True, pca_variance=0.99, pca_components=0,
-                                  hshape_cov=0, hshape_prop_in=0.99,
-                                  hshape_multiplier=1.5)
-    r_train = r[:10000]
-    r_valid = r[10000:]
+    r_train = reject.create_reject_data(x_train, proportion=1,
+            method='uniform_hsphere', pca=True, pca_variance=0.99,
+            pca_components=0, hshape_cov=0, hshape_prop_in=0.99,
+            hshape_multiplier=1.5)
 
     fig = plt.figure('training_data')
     fig.clf()
     scatterplots.plot_data_and_reject(x_train,y_train,r_train,fig=fig)
-    diary.save_figure(fig,'training')
+    diary.save_figure(fig,'training_data')
 
     # Classifier of reject data
     model_rej = train_reject_model(x_train, r_train)
 
-    # Classifier of training data
-    model_clas = train_classifier_model(x_train, y_train)
-
     # TRAINING SCORES
     c1_rs = model_rej.predict_proba(r_train)
     c1_ts = model_rej.predict_proba(x_train)
-    c2_ts = model_clas.predict_proba(x_train)
+
+    c2_rs = np.zeros((r_train.shape[0], n_classes))
+    c2_ts = x_train_y
 
     ace1, ace2, cace = compute_cace(c1_rs, c1_ts, c2_ts, y_train)
 
     print('TRAIN RESULTS')
-    print('Step1 Average Cross-entropy = {}'.format(ace1))
-    print('Step2 Average Cross-entropy = {}'.format(ace2))
-    print('Composite Average Cross-entropy = {}'.format(cace))
     diary.add_entry('training', ['Step1 ACE', ace1])
     diary.add_entry('training', ['Step2 ACE', ace2])
     diary.add_entry('training', ['Composite ACE', cace])
+
+    ce_bas, ce_cco, ce_clas, ce_rej, ce_bas_rej = calculate_mo_ce(
+                                        c2_ts, c2_rs, c1_ts, c1_rs, y_train)
+    diary.add_entry('training', ['CE clas', ce_clas])
+    diary.add_entry('training', ['CE rej', ce_rej])
+    diary.add_entry('training', ['CE bas_rej', ce_bas_rej])
+    diary.add_entry('training', ['CE baseline', ce_bas])
+    diary.add_entry('training', ['CE CCO', ce_cco])
 
     step1_reject_scores = c1_rs[:,1]
     step1_training_scores = c1_ts[:,1]
     step2_training_scores = c2_ts[:,1]
     training_labels = y_train
 
-    print("Step1 Accuracy = {} (prior = {})".format(
-        (np.sum(step1_reject_scores < 0.5) +
-         np.sum(step1_training_scores >=
-             0.5))/(np.alen(x_train)+np.alen(r_train)),
-         np.max([np.alen(x_train),np.alen(r_train)])/(np.alen(x_train)+np.alen(r_train))))
+    step1_acc = (np.sum(step1_reject_scores < 0.5) +
+                 np.sum(step1_training_scores >= 0.5)
+                )/(np.alen(x_train)+np.alen(r_train))
+    step1_prior = (np.max([np.alen(x_train),np.alen(r_train)])
+            /(np.alen(x_train)+np.alen(r_train)))
+    diary.add_entry('training', ['Step1 ACC', step1_acc])
+    diary.add_entry('training', ['Step1 prior', step1_prior])
 
-    print("Step2 Accuracy = {} (prior = {})".format(
-        np.mean(np.argmax(c2_ts, axis=1) == y_train),
-        np.max([1-np.mean(y_train), np.mean(y_train)])))
-
+    step2_acc = np.mean(np.argmax(c2_ts, axis=1) == y_train)
+    step2_prior = np.max([1-np.mean(y_train), np.mean(y_train)])
+    diary.add_entry('training', ['Step2 ACC', step2_acc])
+    diary.add_entry('training', ['Step2 prior', step2_prior])
 
     #####################################################
     # VALIDATION                                        #
     #####################################################
+    x_valid_h = np.load('datasets/mnist_valid_h_fc1_no_relu.npy')
+    x_valid_y = np.load('datasets/mnist_valid_y.npy')
+    x_valid = np.hstack([x_valid_h, x_valid_y])
+    x_valid = scaler.transform(x_valid)
+    x_valid_h = None
+
+    r_valid_h = np.load('datasets/chars74k_letters_h_fc1_no_relu.npy')
+    r_valid_y = np.load('datasets/chars74k_letters_y.npy')
+    r_valid = np.hstack([r_valid_h, r_valid_y])
+    r_valid_h = None
+    r_valid = scaler.transform(r_valid)
+
+
+    indices = np.random.choice(range(len(x_valid)), len(r_valid), replace=False)
+    x_valid = x_valid[indices]
+    y_valid = y_valid[indices]
+    x_valid_y = x_valid_y[indices]
 
     fig = plt.figure('validation_data')
     fig.clf()
     scatterplots.plot_data_and_reject(x_valid,y_valid,r_valid,fig=fig)
     diary.save_figure(fig,'validation_data.pdf')
 
-    # TEST SCORES
+    # VALIDATION SCORES
     c1_rs = model_rej.predict_proba(r_valid)
     c1_ts = model_rej.predict_proba(x_valid)
-    c2_ts = model_clas.predict_proba(x_valid)
+    c2_rs = r_valid_y
+    c2_ts = x_valid_y
 
     ace1, ace2, cace = compute_cace(c1_rs, c1_ts, c2_ts, y_valid)
 
-    print('TEST RESULTS')
-    print('Step1 Average Cross-entropy = {}'.format(ace1))
-    print('Step2 Average Cross-entropy = {}'.format(ace2))
-    print('Composite Average Cross-entropy = {}'.format(cace))
+    print('VALIDATION RESULTS')
     diary.add_entry('validation', ['Step1 ACE', ace1])
     diary.add_entry('validation', ['Step2 ACE', ace2])
     diary.add_entry('validation', ['Composite ACE', cace])
 
+    ce_bas, ce_cco, ce_clas, ce_rej, ce_bas_rej = calculate_mo_ce(
+                                        c2_ts, c2_rs, c1_ts, c1_rs, y_valid)
+    diary.add_entry('validation', ['CE clas', ce_clas])
+    diary.add_entry('validation', ['CE rej', ce_rej])
+    diary.add_entry('validation', ['CE bas_rej', ce_bas_rej])
+    diary.add_entry('validation', ['CE baseline', ce_bas])
+    diary.add_entry('validation', ['CE CCO', ce_cco])
+
     step1_reject_scores = c1_rs[:,1]
     step1_training_scores = c1_ts[:,1]
+    step2_reject_scores = c2_rs[:,1]
     step2_training_scores = c2_ts[:,1]
     training_labels = y_valid
 
-    # Show scores
-    # fig = plt.figure('scores')
-    # fig.clf()
-    # ax = fig.add_subplot(111)
-    # ax.set_title('Scores')
-    # ax.hist([step1_reject_scores, step1_training_scores,
-    #          step2_training_scores])
-    # ax.legend(['step1_reject', 'step1_training', 'step2_class1'],
-    #           loc='upper center')
+    step1_acc = (np.sum(step1_reject_scores < 0.5) +
+                 np.sum(step1_training_scores >= 0.5)
+                )/(np.alen(x_valid)+np.alen(r_valid))
+    step1_prior = (np.max([np.alen(x_valid),np.alen(r_valid)])
+            /(np.alen(x_valid)+np.alen(r_valid)))
+    diary.add_entry('validation', ['Step1 ACC', step1_acc])
+    diary.add_entry('validation', ['Step1 prior', step1_prior])
 
-    # Evaluate models
-    # Accuracy
-    print("Step1 Accuracy = {} (prior = {})".format(
-        (np.sum(step1_reject_scores < 0.5) +
-         np.sum(step1_training_scores >=
-             0.5))/(np.alen(x_valid)+np.alen(r_valid)),
-         np.max([np.alen(x_valid),np.alen(r_valid)])/(np.alen(x_valid)+np.alen(r_valid))))
+    step2_acc = np.mean(np.argmax(c2_ts, axis=1) == y_valid)
+    step2_prior = np.max([1-np.mean(y_valid), np.mean(y_valid)])
+    diary.add_entry('validation', ['Step2 ACC', step2_acc])
+    diary.add_entry('validation', ['Step2 prior', step2_prior])
 
-    print("Step2 Accuracy = {} (prior = {})".format(
-        np.mean(np.argmax(c2_ts, axis=1) == y_valid),
-        np.max([1-np.mean(y_valid), np.mean(y_valid)])))
 
-    # Volume under the PRG-ROC surface
-    # rgrpg = RGRPG(step1_reject_scores, step1_training_scores,
-    #               step2_training_scores, training_labels)
-    #
-    # print("Volume = {}".format(rgrpg.calculate_volume()))
-    # fig = plt.figure('rgrpg_2d')
-    # fig.clf()
-    # rgrpg.plot_rgrpg_2d(fig)
-    # fig = plt.figure('rgrpg_3d')
-    # fig.clf()
-    # rgrpg.plot_rgrpg_3d(n_recalls=50, n_points_roc=50, fig=fig)
 
-    kurwa = Kurwa(step1_reject_scores, step1_training_scores,
-                  c2_ts, training_labels)
 
-    fig = plt.figure('Expected_rec_acc')
-    fig.clf()
-    plt.plot(expected_rec, expected_acc, 'k.-')
-    plt.errorbar(expected_rec, expected_acc, yerr=3*np.std(accuracies,
-                 axis=0), fmt='k.-')
-    plt.xlabel('$E[Recall]$')
-    plt.ylabel('$E[Accuracy]$')
-    plt.xlim([-0.01,1.01])
-    plt.ylim([0,1])
-    diary.save_figure(fig,'exp_rec_acc')
 
-# Area under the RGP curve
+    # Area under the RGP curve
     rgp = RGP(step1_reject_scores, step1_training_scores,
               step2_training_scores, training_labels)
 
-    print("Area = {}".format(rgp.calculate_area()))
+    diary.add_entry('validation', ['AUC-RGP', rgp.calculate_area()])
     fig = plt.figure('RGP_acc')
     fig.clf()
     rgp.plot(fig, accuracy=True)
     diary.save_figure(fig,'rgp_acc')
 
-    print("Area = {}".format(rgp.calculate_area()))
     fig = plt.figure('RGP_pre')
     fig.clf()
     rgp.plot(fig, precision=True)
     diary.save_figure(fig,'rgp_pre')
 
-    print("Area = {}".format(rgp.calculate_area()))
-    fig = plt.figure('RGP')
-    fig.clf()
-    rgp.plot(fig)
-    diary.save_figure(fig,'rgp')
-
     ag = AbstainGainCurve(step1_reject_scores, step1_training_scores,
               step2_training_scores, training_labels)
 
-    print("Area = {}".format(ag.calculate_area()))
+    diary.add_entry('validation', ['AUC-AG', ag.calculate_area()])
     fig = plt.figure('AG')
     fig.clf()
     ag.plot(fig)
     diary.save_figure(fig,'ag')
 
-    print("Optimal threshold for the first classifier = {}".format(rgp.get_optimal_step1_threshold()))
+    diary.add_entry('validation', ['Clas1 RGP threshold', rgp.get_optimal_step1_threshold()])
 
     print("RG1_PG1_ACC2")
     fig = plt.figure('RG1_PG1_ACC2')
@@ -248,7 +248,7 @@ if __name__ == "__main__":
     fpr, tpr, thresholds_1 = roc_curve(p1, np.append(step1_reject_scores,
                                                    step1_training_scores))
     area = auc(fpr, tpr)
-    print('AUC Classifier 1 = {}'.format(area))
+    diary.add_entry('validation', ['Clas1 AUC', area])
 # FIXME there is a problem with some decision trees
 #print('PRGA Classifier 1 = {}'.format(rgrpg.prga))
     plt.plot(fpr, tpr, 'k.-')
@@ -294,23 +294,23 @@ if __name__ == "__main__":
 # Reject, Train*positive, Train*negative
     c1_rs = model_rej.predict_proba(r_valid)
     c1_ts = model_rej.predict_proba(x_valid)
-    c2_rs = model_clas.predict_proba(r_valid)
-    c2_ts = model_clas.predict_proba(x_valid)
+    c2_rs = r_valid_y
+    c2_ts = x_valid_y
 
     step1_reject_scores = c1_rs[:,1]
     step1_training_scores = c1_ts[:,1]
     step2_reject_scores = (c2_rs.T*step1_reject_scores).T
     step2_training_scores = (c2_ts.T*step1_training_scores).T
 
-# p = [R, +, -]
-# q = [R, T*+, T*-]
+    # p = [R, +, -]
+    # q = [R, T*+, T*-]
     q1 = np.expand_dims(np.vstack([c1_rs, c1_ts])[:,0], axis=1)
     p1 = np.vstack([np.ones((len(c1_rs),1)), np.zeros((len(c1_ts),1))])
 
     q2 = np.vstack([step2_reject_scores, step2_training_scores])
-    p2 = label_binarize(y_valid, np.unique(y))
-# label binarize creates [n_samples, n_classes] for n_classes > 2
-# and [n_samples, 1] for n_classes = 2
+    # label binarize creates [n_samples, n_classes] for n_classes > 2
+    # and [n_samples, 1] for n_classes = 2
+    p2 = label_binarize(y_valid, np.unique(y_valid))
     if p2.shape[1] == 1:
         p2 = np.hstack([1-p2, p2])
     p2 = np.vstack([np.zeros((len(c1_rs), p2.shape[1])), p2])
@@ -405,90 +405,3 @@ if __name__ == "__main__":
     plt.xlim([0,1])
     plt.legend(loc='bottom-left')
     diary.save_figure(fig,'pre_rec')
-
-
-    if x_valid.shape[1] == 2:
-        # FIXME take into account maximum values for training instances
-        x_min = np.min(r_valid,axis=0)
-        x_max = np.max(r_valid,axis=0)
-        delta = 60
-        x1_lin = np.linspace(x_min[0], x_max[0], delta)
-        x2_lin = np.linspace(x_min[1], x_max[1], delta)
-
-        MX1, MX2 = np.meshgrid(x1_lin, x2_lin)
-        x_grid = np.asarray([MX1.flatten(),MX2.flatten()]).T
-        q1_grid =  model_rej.predict_proba(x_grid)
-        q2_grid =  model_clas.predict_proba(x_grid)
-
-        q_grid = np.hstack([np.expand_dims(q1_grid[:,0], axis=1), q2_grid])
-
-        # HEATMAP OF PROBABILITIES
-        fig = plt.figure('heat_map_nw', frameon=False)
-        plt.clf()
-        heatmaps.plot_probabilities(q_grid)
-        plt.title('Probabilities')
-        diary.save_figure(fig,'heat_map_nw')
-
-        #q_grid = np.hstack([np.expand_dims(q1_grid[:,0], axis=1), (q2_grid.T*q1_grid[:,1]).T])
-
-        # HEATMAP OF WEIGHTED PROBABILITIES
-        #fig = plt.figure('heat_map_w', frameon=False)
-        #plt.clf()
-        #heatmaps.plot_probabilities(q_grid)
-        #plt.title('Weighted probabilities')
-        #diary.save_figure(fig,'{}_heat_map_w_synthetic_example.pdf'.format(example))
-
-        # SCATTERPLOT OF PREDICTIONS
-        threshold = thresholds_joint[-1-np.argmax(np.mean(fbeta, axis=1)[::-1])]
-        predictions_grid = q_grid >= threshold
-        fig = plt.figure('fbeta_grid')
-        plt.clf()
-        scatterplots.plot_predictions(x_grid, predictions_grid)
-        plt.title('$F_{}$ optimal threshold = {}'.format("{"+str(beta)+"}", threshold))
-        diary.save_figure(fig,'fbeta_prediction')
-
-        # SCATTERPLOT OF PREDICTIONS
-        threshold = thresholds_joint[-1-np.argmax(np.mean(jaccard, axis=1)[::-1])]
-        predictions_grid = q_grid >= threshold
-        fig = plt.figure('jaccard_grid')
-        plt.clf()
-        scatterplots.plot_predictions(x_grid, predictions_grid)
-        plt.title('Jaccard optimal threshold = {}'.format(threshold))
-        diary.save_figure(fig,'jaccard_prediction')
-
-        # SCATTERPLOT OF PREDICTIONS
-        threshold = thresholds_joint[-1-np.argmax(np.mean(accuracies_joint, axis=1)[::-1])]
-        predictions_grid = q_grid >= threshold
-        fig = plt.figure('accuracies_grid')
-        plt.clf()
-        scatterplots.plot_predictions(x_grid, predictions_grid)
-        plt.title('Accuracy optimal threshold = {}'.format(threshold))
-        diary.save_figure(fig,'accuracies_prediction_grid')
-
-        # SCATTERPLOT OF ARGMAX PREDICTIONS
-        predictions_grid = label_binarize(q_grid.argmax(axis=1),
-                range(q_grid.shape[1])).astype('bool')
-        fig = plt.figure('argmax_grid')
-        plt.clf()
-        scatterplots.plot_predictions(x_grid, predictions_grid)
-        plt.title('Argmax')
-        diary.save_figure(fig,'argmax_prediction_grid')
-
-        # CONTOUR CLASSIFIER 1
-        fig = plt.figure('validation_data')
-        x_min = np.min(r_valid,axis=0)
-        x_max = np.max(r_valid,axis=0)
-        x1_lin = np.linspace(x_min[0], x_max[0], delta)
-        x2_lin = np.linspace(x_min[1], x_max[1], delta)
-
-        MX1, MX2 = np.meshgrid(x1_lin, x2_lin)
-        x_grid = np.asarray([MX1.flatten(),MX2.flatten()]).T
-        p_grid =  model_rej.predict_proba(x_grid)
-        levels = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
-        CS = plt.contour(x_grid[:,0].reshape(delta,delta),
-                         x_grid[:,1].reshape(delta,delta),
-                         p_grid[:,1].reshape(delta,-1), levels, linewidths=3,
-                         alpha=0.5)
-        plt.clabel(CS, fontsize=15, inline=2)
-        plt.title('Reject model contour lines')
-        diary.save_figure(fig,'reject_contour')

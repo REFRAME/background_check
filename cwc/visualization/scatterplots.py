@@ -63,10 +63,10 @@ def plot_data_and_reject(x, y, r, max_dim=2, fig=None):
         plt.legend(bbox_to_anchor=(1.05, 0), loc='lower left', borderaxespad=0.)
     elif n_features == 2 or max_dim == 2:
         ax.scatter(r[:,0], r[:,1], marker='+', c=colors[0], label='$C_{new}$')
-        r_min = r.min(axis=0)
-        r_max = r.max(axis=0)
-        ax.set_xlim([r_min[0], r_max[0]])
-        ax.set_ylim([r_min[1], r_max[1]])
+        x_min = np.min(np.vstack([x.min(axis=0), r.min(axis=0)]), axis=0)
+        x_max = np.max(np.vstack([x.max(axis=0), r.max(axis=0)]), axis=0)
+        ax.set_xlim([x_min[0], x_max[0]])
+        ax.set_ylim([x_min[1], x_max[1]])
         plt.legend(bbox_to_anchor=(1.05, 0), loc='lower left', borderaxespad=0.)
     elif n_features >= 3 or max_dim == 3:
         ax.scatter(r[:,0], r[:,1], r[:,2], marker='+', c=colors[0])
