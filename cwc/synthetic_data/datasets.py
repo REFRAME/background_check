@@ -9,16 +9,16 @@ class Dataset(object):
     def __init__(self, name, data, target):
         self.name = name
         self._data = data
-        self._target, self._classes, self._names = self.standardize_targets(target)
+        self._target, self._classes, self._names, self._counts = self.standardize_targets(target)
 
     def standardize_targets(self, target):
         target = np.squeeze(target)
-        names = np.unique(target)
+        names, counts = np.unique(target, return_counts=True)
         new_target = np.empty_like(target, dtype=int)
         for i, name in enumerate(names):
             new_target[target==name] = i
         classes = range(len(names))
-        return new_target, classes, names
+        return new_target, classes, names, counts
 
     @property
     def target(self):
@@ -35,6 +35,10 @@ class Dataset(object):
     @property
     def classes(self):
         return self._classes
+
+    @property
+    def counts(self):
+        return self._counts
 
 
 class MLData(object):
