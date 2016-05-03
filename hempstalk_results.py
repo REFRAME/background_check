@@ -31,7 +31,6 @@ for name, dataset in mldata.datasets.iteritems():
     weighted_auc = 0.0
     mc_iterations = 10.0
     n_folds = 10.0
-    counts = dataset.counts
     for mc in np.arange(mc_iterations):
         skf = StratifiedKFold(dataset.target, n_folds=n_folds, shuffle=True)
         test_folds = skf.test_folds
@@ -40,14 +39,15 @@ for name, dataset in mldata.datasets.iteritems():
              separate_sets(dataset.data, dataset.target, test_fold, test_folds)
             n_training = np.alen(training_labels)
             for actual_class in dataset.classes:
-                if counts[actual_class] >= 2*n_folds:
-                    tr_class = training_data[training_labels == actual_class, :]
-                    t_labels = (test_labels == actual_class).astype(int)
+                tr_class = training_data[training_labels == actual_class, :]
+                t_labels = (test_labels == actual_class).astype(int)
+                prior = np.alen(tr_class) / n_training
+                if np.alen(tr_class) > 1 and not all(t_labels == 0):
                     g = GMM()
                     g.fit(tr_class)
                     scores = g.score(test_data)
                     auc = roc_auc_score(t_labels, scores)
-                    prior = np.alen(tr_class) / n_training
                     weighted_auc += auc*prior
+
     weighted_auc /= (n_folds * mc_iterations)
     print ("Weighted AUC: {}".format(weighted_auc))
