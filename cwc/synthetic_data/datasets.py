@@ -96,11 +96,6 @@ class MLData(object):
         elif name=='mfeat-morphological':
             data = mldata.target.T
             target = mldata.data
-        elif name=='glass':
-            url="http://archive.ics.uci.edu/ml/machine-learning-databases/glass/glass.data"
-            data = np.genfromtxt(url, delimiter=',')
-            target = data[:,-1]
-            data = data[:,1:-1]
         else:
             try:
                 data = mldata.data
