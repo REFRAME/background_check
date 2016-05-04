@@ -76,7 +76,7 @@ class MultivariateNormal(object):
 
 for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
     print i
-    if i%2: continue
+    if not i%2: continue
     print name
     print dataset.classes
     weighted_auc = 0.0
@@ -89,13 +89,18 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
             x_train, y_train, x_test, y_test = separate_sets(
                     dataset.data, dataset.target, test_fold, test_folds)
             n_training = np.alen(y_train)
+            w_auc_fold = 0
+            prior_sum = 0
             for actual_class in dataset.classes:
                 tr_class = x_train[y_train == actual_class, :]
                 t_labels = (y_test == actual_class).astype(int)
                 prior = np.alen(tr_class) / n_training
+                prior_sum += prior
                 if np.alen(tr_class) > 1 and not all(t_labels == 0):
-
-                    model = GMM(n_components=tr_class.shape[1],
+                    n_c = tr_class.shape[1]
+                    if n_c > np.alen(tr_class):
+                        n_c = np.alen(tr_class)
+                    model = GMM(n_components=n_c,
                                 covariance_type='diag')
                     #model = GMM(n_components=1, covariance_type='full',
                     #        verbose=2)
@@ -106,7 +111,7 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
                     scores = model.score(x_test)
 
                     auc = roc_auc_score(t_labels, scores)
-                    weighted_auc += auc*prior
-
+                    w_auc_fold += auc*prior
+            weighted_auc += w_auc_fold / prior_sum
     weighted_auc /= (n_folds * mc_iterations)
     print ("Weighted AUC: {}".format(weighted_auc))
