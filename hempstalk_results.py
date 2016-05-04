@@ -20,12 +20,16 @@ class MyMultivariateNormal(object):
     def __init__(self, min_covar=0.001, covariance_type='diag'):
         self.min_covar = min_covar
         self.covariance_type = covariance_type
+        self.alpha = 0.00000001
 
 
         if covariance_type not in ['full', 'diag',]:
             raise ValueError('Invalid value for covariance_type: %s' %
                              covariance_type)
 
+    def pseudo_determinant(self, A, alpha):
+        n = len(A)
+        return np.linalg.det(A + np.eye(n)*alpha)/ np.power(alpha, n-np.rank(A))
 
     def fit(self, x):
         self.mu = x.mean(axis=0)
@@ -37,12 +41,15 @@ class MyMultivariateNormal(object):
         self.size = x.shape[1]
 
         self.det = np.linalg.det(self.sigma)
+        # If sigma is singular
         if self.det == 0:
-            raise NameError("The covariance matrix can't be singular")
-
-        self.norm_const = 1.0/ ( np.power((2*np.pi),float(self.size)/2) *
-                np.sqrt(self.det) )
-        self.inv = np.linalg.pinv(self.sigma)
+            self.pseudo_det = self.pseudo_determinant(self.sigma*2*np.pi, self.alpha)
+            self.norm_const = 1.0/ np.sqrt(self.pseudo_det)
+            self.inv = np.linalg.pinv(self.sigma)
+        else:
+            self.norm_const = 1.0/ ( np.power((2*np.pi),float(self.size)/2) *
+                    np.sqrt(self.det) )
+            self.inv = np.linalg.inv(self.sigma)
 
     def score(self,x):
         x_mu = np.subtract(x,self.mu)
@@ -76,7 +83,7 @@ class MultivariateNormal(object):
 
 for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
     print i
-    if not i%2: continue
+    if i%2: continue
     print name
     print dataset.classes
     weighted_auc = 0.0
@@ -100,11 +107,11 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
                     n_c = tr_class.shape[1]
                     if n_c > np.alen(tr_class):
                         n_c = np.alen(tr_class)
-                    model = GMM(n_components=n_c,
-                                covariance_type='diag')
+                    #model = GMM(n_components=n_c,
+                    #            covariance_type='diag')
                     #model = GMM(n_components=1, covariance_type='full',
                     #        verbose=2)
-                    #model = MyMultivariateNormal(covariance_type='full')
+                    model = MyMultivariateNormal(covariance_type='full')
                     #model = MultivariateNormal()
 
                     model.fit(tr_class)
