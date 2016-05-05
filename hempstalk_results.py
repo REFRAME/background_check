@@ -80,15 +80,13 @@ class MultivariateNormal(object):
     def score(self,x):
         return self.model.pdf(x)
 
+mc_iterations = 10.0
+n_folds = 10.0
+weighted_auc = np.full((len(mldata.datasets), mc_iterations, n_folds), -1)
 
 for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
     print i
-    if i%2: continue
-    print name
-    print dataset.classes
-    weighted_auc = 0.0
-    mc_iterations = 10.0
-    n_folds = 10.0
+    mldata.sumarize_datasets(name)
     for mc in np.arange(mc_iterations):
         skf = StratifiedKFold(dataset.target, n_folds=n_folds, shuffle=True)
         test_folds = skf.test_folds
@@ -111,7 +109,7 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
                     #            covariance_type='diag')
                     #model = GMM(n_components=1, covariance_type='full',
                     #        verbose=2)
-                    model = MyMultivariateNormal(covariance_type='full')
+                    model = MyMultivariateNormal(covariance_type='diag')
                     #model = MultivariateNormal()
 
                     model.fit(tr_class)
@@ -119,6 +117,22 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
 
                     auc = roc_auc_score(t_labels, scores)
                     w_auc_fold += auc*prior
-            weighted_auc += w_auc_fold / prior_sum
-    weighted_auc /= (n_folds * mc_iterations)
-    print ("Weighted AUC: {}".format(weighted_auc))
+            weighted_auc[i, mc, test_fold] = w_auc_fold / prior_sum
+    w_auc_mean = weighted_auc[i].mean()
+    w_auc_std = weighted_auc[i].std()
+    print ("Weighted AUC: {} +- {}".format(w_auc_mean, w_auc_std))
+
+
+
+print("dataset,size,features,classes,wauc mean, wauc std,min,max")
+for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
+    w_auc_mean = weighted_auc[i].mean()
+    w_auc_std = weighted_auc[i].std()
+    size = dataset.data.shape[0]
+    n_features = dataset.data.shape[1]
+    classes = len(dataset.classes)
+    minimum = dataset.data.min()
+    maximum = dataset.data.max()
+    if w_auc_mean != -1:
+        print ("{},{},{},{},{},{},{},{}".format(name, size, n_features,
+            classes, w_auc_mean, w_auc_std, minimum, maximum))

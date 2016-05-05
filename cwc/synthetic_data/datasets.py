@@ -8,8 +8,15 @@ plt.ion()
 class Dataset(object):
     def __init__(self, name, data, target):
         self.name = name
-        self._data = data
+        self._data = self.standardize_data(data)
         self._target, self._classes, self._names, self._counts = self.standardize_targets(target)
+
+    def standardize_data(self, data):
+        new_data = data.astype(float)
+        data_mean = new_data.mean(axis=0)
+        data_std = new_data.std(axis=0)
+        data_std[data_std == 0] = 1
+        return (new_data-data_mean)/data_std
 
     def standardize_targets(self, target):
         target = np.squeeze(target)
@@ -109,12 +116,21 @@ class MLData(object):
 
         return Dataset(name, data, target)
 
-    def sumarize_datasets(self):
-        for name, dataset in self.datasets.iteritems():
+    def sumarize_datasets(self, name=None):
+        if name is not None:
+            dataset = self.datasets[name]
             print('Name = {}'.format(name))
             print('Data shape = {}'.format(dataset.data.shape))
             print('Target shape = {}'.format(dataset.target.shape))
             print('Target classes = {}'.format(dataset.classes))
             print('Target labels = {}'.format(dataset.names))
             print('\n')
+        else:
+            for name, dataset in self.datasets.iteritems():
+                print('Name = {}'.format(name))
+                print('Data shape = {}'.format(dataset.data.shape))
+                print('Target shape = {}'.format(dataset.target.shape))
+                print('Target classes = {}'.format(dataset.classes))
+                print('Target labels = {}'.format(dataset.names))
+                print('\n')
 
