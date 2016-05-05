@@ -68,12 +68,16 @@ def separate_sets(x, y, test_fold_id, test_folds):
 
 
 class MultivariateNormal(object):
-    def __init__(self, allow_singular=True):
+    def __init__(self, allow_singular=True, covariance_type='diag'):
         self.allow_singular = allow_singular
+        self.covariance_type = covariance_type
 
     def fit(self, x):
         self.mu = x.mean(axis=0)
         self.sigma = np.cov(x.T)
+        if self.covariance_type == 'diag':
+            self.sigma = np.eye(np.alen(self.sigma))*self.sigma
+
         self.model = multivariate_normal(mean=self.mu, cov=self.sigma,
                 allow_singular=self.allow_singular)
 
@@ -106,11 +110,10 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
                     if n_c > np.alen(tr_class):
                         n_c = np.alen(tr_class)
                     #model = GMM(n_components=n_c,
-                    #            covariance_type='diag')
-                    #model = GMM(n_components=1, covariance_type='full',
-                    #        verbose=2)
-                    model = MyMultivariateNormal(covariance_type='diag')
-                    #model = MultivariateNormal()
+                    #            covariance_type='full')
+                    #model = GMM(n_components=1, covariance_type='full')
+                    #model = MyMultivariateNormal(covariance_type='full')
+                    model = MultivariateNormal(covariance_type='diag')
 
                     model.fit(tr_class)
                     scores = model.score(x_test)
