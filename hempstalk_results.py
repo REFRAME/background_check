@@ -10,7 +10,8 @@ plt.rcParams['figure.figsize'] = (7,4)
 plt.rcParams['figure.autolayout'] = True
 
 from sklearn.cross_validation import StratifiedKFold
-
+from sklearn.ensemble import BaggingClassifier
+from sklearn.tree import DecisionTreeClassifier
 from cwc.synthetic_data.datasets import MLData
 
 
@@ -82,11 +83,13 @@ class MultivariateNormal(object):
 
 mc_iterations = 10.0
 n_folds = 10.0
-weighted_auc = np.full((len(mldata.datasets), mc_iterations, n_folds), -1)
+weighted_auc_dens = np.full((len(mldata.datasets), mc_iterations, n_folds), -1)
+weighted_auc_bag = np.full((len(mldata.datasets), mc_iterations, n_folds), -1)
 
 for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
     print i
     mldata.sumarize_datasets(name)
+    # if name != "iris": continue
     for mc in np.arange(mc_iterations):
         skf = StratifiedKFold(dataset.target, n_folds=n_folds, shuffle=True)
         test_folds = skf.test_folds
@@ -94,7 +97,8 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
             x_train, y_train, x_test, y_test = separate_sets(
                     dataset.data, dataset.target, test_fold, test_folds)
             n_training = np.alen(y_train)
-            w_auc_fold = 0
+            w_auc_fold_dens = 0
+            w_auc_fold_bag = 0
             prior_sum = 0
             for actual_class in dataset.classes:
                 tr_class = x_train[y_train == actual_class, :]
@@ -107,32 +111,57 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
                         n_c = np.alen(tr_class)
                     #model = GMM(n_components=n_c,
                     #            covariance_type='diag')
-                    #model = GMM(n_components=1, covariance_type='full',
-                    #        verbose=2)
-                    model = MyMultivariateNormal(covariance_type='diag')
+                    model = GMM(n_components=1, covariance_type='diag')
+                    # model = MyMultivariateNormal(covariance_type='diag')
                     #model = MultivariateNormal()
 
                     model.fit(tr_class)
+
+                    new_data = model.sample(np.alen(tr_class))
+
+                    bag = BaggingClassifier(
+                        base_estimator=DecisionTreeClassifier(),
+                        n_estimators=10)
+
+                    new_data = np.vstack((tr_class, new_data))
+                    y = np.zeros(np.alen(new_data))
+                    y[:np.alen(tr_class)] = 1
+
+                    bag.fit(new_data, y)
+
+                    probs = bag.predict_proba(x_test)
+
                     scores = model.score(x_test)
+                    auc_dens = roc_auc_score(t_labels, scores)
+                    auc_bag = roc_auc_score(t_labels, probs[:, 1])
+                    w_auc_fold_dens += auc_dens * prior
+                    w_auc_fold_bag += auc_bag * prior
+            weighted_auc_dens[i, mc, test_fold] = w_auc_fold_dens / prior_sum
+            weighted_auc_bag[i, mc, test_fold] = w_auc_fold_bag / prior_sum
+    w_auc_mean_dens = weighted_auc_dens[i].mean()
+    w_auc_std_dens = weighted_auc_dens[i].std()
+    w_auc_mean_bag = weighted_auc_bag[i].mean()
+    w_auc_std_bag = weighted_auc_bag[i].std()
+    print ("Weighted AUC density: {} +- {}".format(w_auc_mean_dens,
+                                                   w_auc_std_dens))
+    print ("Weighted AUC Bagged trees: {} +- {}".format(w_auc_mean_bag,
+                                                        w_auc_std_bag))
 
-                    auc = roc_auc_score(t_labels, scores)
-                    w_auc_fold += auc*prior
-            weighted_auc[i, mc, test_fold] = w_auc_fold / prior_sum
-    w_auc_mean = weighted_auc[i].mean()
-    w_auc_std = weighted_auc[i].std()
-    print ("Weighted AUC: {} +- {}".format(w_auc_mean, w_auc_std))
 
-
-
-print("dataset,size,features,classes,wauc mean, wauc std,min,max")
+print("dataset,size,features,classes,wauc mean dens, wauc std dens,wauc mean "
+      "bag, wauc std bag,min,max")
 for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
-    w_auc_mean = weighted_auc[i].mean()
-    w_auc_std = weighted_auc[i].std()
+    w_auc_mean_dens = weighted_auc_dens[i].mean()
+    w_auc_std_dens = weighted_auc_dens[i].std()
+    w_auc_mean_bag = weighted_auc_bag[i].mean()
+    w_auc_std_bag = weighted_auc_bag[i].std()
     size = dataset.data.shape[0]
     n_features = dataset.data.shape[1]
     classes = len(dataset.classes)
     minimum = dataset.data.min()
     maximum = dataset.data.max()
-    if w_auc_mean != -1:
+    if w_auc_mean_dens != -1:
         print ("{},{},{},{},{},{},{},{}".format(name, size, n_features,
-            classes, w_auc_mean, w_auc_std, minimum, maximum))
+            classes, w_auc_mean_dens, w_auc_std_dens, w_auc_mean_bag,
+                                                w_auc_std_bag, minimum,
+                                                maximum))
