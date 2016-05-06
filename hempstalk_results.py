@@ -89,6 +89,7 @@ mc_iterations = 10.0
 n_folds = 10.0
 weighted_auc_dens = np.full((len(mldata.datasets), mc_iterations, n_folds), -1)
 weighted_auc_bag = np.full((len(mldata.datasets), mc_iterations, n_folds), -1)
+weighted_auc_com = np.full((len(mldata.datasets), mc_iterations, n_folds), -1)
 
 for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
     print i
@@ -103,6 +104,7 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
             n_training = np.alen(y_train)
             w_auc_fold_dens = 0
             w_auc_fold_bag = 0
+            w_auc_fold_com = 0
             prior_sum = 0
             for actual_class in dataset.classes:
                 tr_class = x_train[y_train == actual_class, :]
@@ -133,32 +135,46 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
 
                     bag.fit(new_data, y)
 
-                    probs = bag.predict_proba(x_test)
-
+                    probs = bag.predict_proba(x_test)[:, 1]
                     scores = model.score(x_test)
+                    
+                    com_scores = (probs / np.clip(1.0 - probs,
+                                                  1e-16, 1.0)) * scores
+
                     auc_dens = roc_auc_score(t_labels, scores)
-                    auc_bag = roc_auc_score(t_labels, probs[:, 1])
+                    auc_bag = roc_auc_score(t_labels, probs)
+                    auc_com = roc_auc_score(t_labels, com_scores)
+
                     w_auc_fold_dens += auc_dens * prior
                     w_auc_fold_bag += auc_bag * prior
+                    w_auc_fold_com += auc_com * prior
+
             weighted_auc_dens[i, mc, test_fold] = w_auc_fold_dens / prior_sum
             weighted_auc_bag[i, mc, test_fold] = w_auc_fold_bag / prior_sum
+            weighted_auc_com[i, mc, test_fold] = w_auc_fold_com / prior_sum
     w_auc_mean_dens = weighted_auc_dens[i].mean()
     w_auc_std_dens = weighted_auc_dens[i].std()
     w_auc_mean_bag = weighted_auc_bag[i].mean()
     w_auc_std_bag = weighted_auc_bag[i].std()
+    w_auc_mean_com = weighted_auc_com[i].mean()
+    w_auc_std_com = weighted_auc_com[i].std()
     print ("Weighted AUC density: {} +- {}".format(w_auc_mean_dens,
                                                    w_auc_std_dens))
     print ("Weighted AUC Bagged trees: {} +- {}".format(w_auc_mean_bag,
                                                         w_auc_std_bag))
+    print ("Weighted AUC Combined: {} +- {}".format(w_auc_mean_com,
+                                                        w_auc_std_com))
 
 
 print("dataset,size,features,classes,wauc mean dens, wauc std dens,wauc mean "
-      "bag, wauc std bag,min,max")
+      "bag, wauc std bag,wauc mean com, wauc std com,min,max")
 for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
     w_auc_mean_dens = weighted_auc_dens[i].mean()
     w_auc_std_dens = weighted_auc_dens[i].std()
     w_auc_mean_bag = weighted_auc_bag[i].mean()
     w_auc_std_bag = weighted_auc_bag[i].std()
+    w_auc_mean_com = weighted_auc_com[i].mean()
+    w_auc_std_com = weighted_auc_com[i].std()
     size = dataset.data.shape[0]
     n_features = dataset.data.shape[1]
     classes = len(dataset.classes)
@@ -167,5 +183,6 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
     if w_auc_mean_dens != -1:
         print ("{},{},{},{},{},{},{},{}".format(name, size, n_features,
             classes, w_auc_mean_dens, w_auc_std_dens, w_auc_mean_bag,
-                                                w_auc_std_bag, minimum,
+                                                w_auc_std_bag, w_auc_mean_com,
+                                                w_auc_std_com, minimum,
                                                 maximum))
