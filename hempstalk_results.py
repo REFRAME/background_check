@@ -181,8 +181,7 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
     minimum = dataset.data.min()
     maximum = dataset.data.max()
     if w_auc_mean_dens != -1:
-        print ("{},{},{},{},{},{},{},{}".format(name, size, n_features,
-            classes, w_auc_mean_dens, w_auc_std_dens, w_auc_mean_bag,
-                                                w_auc_std_bag, w_auc_mean_com,
-                                                w_auc_std_com, minimum,
-                                                maximum))
+        print ("{},{},{},{},{},{},{},{},{},{},{},{}".format(
+            name, size, n_features, classes, w_auc_mean_dens, w_auc_std_dens,
+            w_auc_mean_bag, w_auc_std_bag, w_auc_mean_com, w_auc_std_com,
+            minimum, maximum))
