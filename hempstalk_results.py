@@ -22,8 +22,7 @@ class MyMultivariateNormal(object):
     def __init__(self, min_covar=0.001, covariance_type='diag'):
         self.min_covar = min_covar
         self.covariance_type = covariance_type
-        self.alpha = 0.00000001
-
+        self.alpha = np.float32(1e-45)
 
         if covariance_type not in ['full', 'diag',]:
             raise ValueError('Invalid value for covariance_type: %s' %
@@ -35,7 +34,7 @@ class MyMultivariateNormal(object):
 
     def fit(self, x):
         self.mu = x.mean(axis=0)
-        self.sigma = np.cov(x.T)
+        self.sigma = np.cov(x.T, bias=1)
         self.sigma[self.sigma==0] = self.min_covar
         if(self.covariance_type == 'diag'):
             self.sigma = np.eye(np.alen(self.sigma))*self.sigma
@@ -59,6 +58,11 @@ class MyMultivariateNormal(object):
 
         return self.norm_const * result
 
+    def log_likelihood(self,x):
+        x_mu = np.subtract(x,self.mu)
+        result = -0.5 * np.diag(np.dot(x_mu,np.dot(self.inv, x_mu.T)))
+
+        return self.norm_const * result
 
 class MultivariateNormal(object):
     def __init__(self, allow_singular=True, covariance_type='diag'):
@@ -67,7 +71,7 @@ class MultivariateNormal(object):
 
     def fit(self, x):
         self.mu = x.mean(axis=0)
-        self.sigma = np.cov(x.T)
+        self.sigma = np.cov(x.T, bias=1)
         if self.covariance_type == 'diag':
             self.sigma = np.eye(np.alen(self.sigma))*self.sigma
 
@@ -118,9 +122,10 @@ columns=['Dataset', 'MC iteration', 'N-fold id', 'Actual class', 'Model',
 # Create a DataFrame to record all intermediate results
 df = pd.DataFrame(columns=columns)
 
-mc_iterations = 10.0
-n_folds = 10.0
+mc_iterations = 2.0
+n_folds = 3.0
 for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
+    if name != "mfeat-karhunen": continue
     print('Dataset number {}'.format(i))
     mldata.sumarize_datasets(name)
     for mc in np.arange(mc_iterations):
@@ -172,7 +177,8 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
                     scores = model.score(x_test)
 
                     com_scores = (probs / np.clip(1.0 - probs,
-                                                  1e-16, 1.0)) * np.exp(scores)
+                                                  1e-16, 1.0)) * (
+                        scores-scores.min())
 
                     # Scores for the Density estimator
                     auc_dens = roc_auc_score(t_labels, scores)
