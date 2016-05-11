@@ -58,11 +58,21 @@ class MyMultivariateNormal(object):
 
         return self.norm_const * result
 
-    def log_likelihood(self,x):
-        x_mu = np.subtract(x,self.mu)
-        result = -0.5 * np.diag(np.dot(x_mu,np.dot(self.inv, x_mu.T)))
+    @property
+    def means_(self):
+        return self.mu
 
+    @property
+    def covars_(self):
+        if self.covariance_type == 'diag':
+            return np.diag(self.sigma)
+        return self.sigma
+
+    def log_likelihood(self, x):
+        x_mu = np.subtract(x, self.mu)
+        result = -0.5 * np.diag(np.dot(x_mu,np.dot(self.inv, x_mu.T)))
         return self.norm_const * result
+
 
 class MultivariateNormal(object):
     def __init__(self, allow_singular=True, covariance_type='diag'):
@@ -80,6 +90,16 @@ class MultivariateNormal(object):
 
     def score(self,x):
         return self.model.pdf(x)
+
+    @property
+    def means_(self):
+        return self.mu
+
+    @property
+    def covars_(self):
+        if self.covariance_type == 'diag':
+            return np.diag(self.sigma)
+        return self.sigma
 
 
 def export_results(table):
@@ -116,14 +136,24 @@ def separate_sets(x, y, test_fold_id, test_folds):
     return [x_train, y_train, x_test, y_test]
 
 
+def mean_squared_error(x1, x2):
+    return np.mean(np.power(np.subtract(x1, x2),2))
+
+
+# Columns for the DataFrame to compare the Density estimators
+columns_gaussians=['Dataset', 'MC iteration', 'N-fold id', 'Actual class',
+                   'Model', 'mean_mse','cov_mse', 'Prior']
+# Create a DataFrame to record all intermediate results
+df_gaussians = pd.DataFrame(columns=columns_gaussians)
+
 # Columns for the DataFrame
 columns=['Dataset', 'MC iteration', 'N-fold id', 'Actual class', 'Model',
         'AUC', 'Prior']
 # Create a DataFrame to record all intermediate results
 df = pd.DataFrame(columns=columns)
 
-mc_iterations = 2.0
-n_folds = 3.0
+mc_iterations = 10
+n_folds = 10
 for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
     if name != "mfeat-karhunen": continue
     print('Dataset number {}'.format(i))
@@ -151,15 +181,41 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
 
 
                     # Train a Density estimator
-                    #model = GMM(n_components=n_c,
-                    #            covariance_type='full')
-                    model = GMM(n_components=1, covariance_type='diag')
-                    #model = MyMultivariateNormal(covariance_type='full')
-                    #model = MultivariateNormal(covariance_type='diag')
+                    model_mymvn = MyMultivariateNormal(covariance_type='diag')
+                    model_mymvn.fit(tr_class)
 
-                    model.fit(tr_class)
+                    model_mvn= MultivariateNormal(covariance_type='diag')
+                    model_mvn.fit(tr_class)
 
-                    new_data = model.sample(np.alen(tr_class))
+                    model_gmm = GMM(n_components=1, covariance_type='diag')
+                    model_gmm.fit(tr_class)
+
+                    x_train_means = x_train.mean(axis=0)
+                    x_train_stds = x_train.std(axis=0)
+
+                    mse_mean_mymvn = mean_squared_error(model_mymvn.means_,
+                                                  x_train_means)
+                    mse_std_mymvn = mean_squared_error(model_mymvn.covars_,
+                                                  np.power(x_train_stds,2))
+                    mse_mean_mvn = mean_squared_error(model_mvn.means_,
+                                                  x_train_means)
+                    mse_std_mvn = mean_squared_error(model_mvn.covars_,
+                                                  np.power(x_train_stds,2))
+                    mse_mean_gmm = mean_squared_error(model_gmm.means_,
+                                                  x_train_means)
+                    mse_std_gmm = mean_squared_error(model_gmm.covars_,
+                                                  np.power(x_train_stds,2))
+                    dfaux = pd.DataFrame([[name, mc, test_fold, actual_class,
+                                         'MyMVN', mse_mean_mymvn, mse_std_mymvn, prior],
+                                        [name, mc, test_fold, actual_class,
+                                         'MVN', mse_mean_mvn, mse_std_mvn, prior],
+                                        [name, mc, test_fold, actual_class,
+                                         'GMM', mse_mean_gmm, mse_std_gmm, prior]],
+                                        columns=columns_gaussians)
+                    df_gaussians = df_gaussians.append(dfaux, ignore_index=True)
+
+                    # Generate artificial data
+                    new_data = model_gmm.sample(np.alen(tr_class))
 
                     # Train a Bag of Trees
                     bag = BaggingClassifier(
@@ -174,7 +230,7 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
 
                     # Combine the results
                     probs = bag.predict_proba(x_test)[:, 1]
-                    scores = model.score(x_test)
+                    scores = model_gmm.score(x_test)
 
                     com_scores = (probs / np.clip(1.0 - probs,
                                                   1e-16, 1.0)) * (
@@ -186,16 +242,24 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
                     auc_bag = roc_auc_score(t_labels, probs)
                     # Scores for the Combined model
                     auc_com = roc_auc_score(t_labels, com_scores)
+                    # Scores for the Density estimator
+                    auc_mvn = roc_auc_score(t_labels, model_mvn.score(x_test))
+                    # Scores for the Density estimator
+                    auc_mymvn = roc_auc_score(t_labels, model_mymvn.score(x_test))
 
                     # Create a new DataFrame to append to the original one
-                    df2 = pd.DataFrame([[name, mc, test_fold, actual_class,
+                    dfaux = pd.DataFrame([[name, mc, test_fold, actual_class,
                                          'Combined', auc_com, prior],
                                         [name, mc, test_fold, actual_class,
                                          'P(T$|$X)', auc_bag, prior],
                                         [name, mc, test_fold, actual_class,
-                                         'P(X$|$A)', auc_dens, prior]],
+                                         'P(X$|$A)', auc_dens, prior],
+                                        [name, mc, test_fold, actual_class,
+                                         'MyMVN', auc_mymvn, prior],
+                                        [name, mc, test_fold, actual_class,
+                                         'MVN', auc_mvn, prior]],
                                         columns=columns)
-                    df = df.append(df2, ignore_index=True)
+                    df = df.append(dfaux, ignore_index=True)
 
 
 # Convert values to numeric
@@ -226,3 +290,9 @@ final_table =  final_results.pivot_table(values=['mean', 'std'],
 
 # Export the results in a csv and LaTeX file
 export_results(final_table)
+
+df_gaus_group = df_gaussians.groupby(['Dataset', 'Model']).mean()
+df_gaus_group.reset_index(inplace=True)
+gaus_table = df_gaus_group.pivot_table(values=['mean_mse', 'cov_mse'],
+                                       index=['Dataset'], columns=['Model'])
+gaus_table.to_csv('gaus_table.csv')
