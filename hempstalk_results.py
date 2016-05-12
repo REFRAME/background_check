@@ -13,89 +13,11 @@ from sklearn.cross_validation import StratifiedKFold
 from sklearn.ensemble import BaggingClassifier
 from sklearn.tree import DecisionTreeClassifier
 from cwc.synthetic_data.datasets import MLData
+from cwc.synthetic_data import reject
 
 import pandas as pd
 
 mldata = MLData()
-
-class MyMultivariateNormal(object):
-    def __init__(self, min_covar=0.001, covariance_type='diag'):
-        self.min_covar = min_covar
-        self.covariance_type = covariance_type
-        self.alpha = 0.00000001
-
-
-        if covariance_type not in ['full', 'diag',]:
-            raise ValueError('Invalid value for covariance_type: %s' %
-                             covariance_type)
-
-    def pseudo_determinant(self, A, alpha):
-        n = len(A)
-        return np.linalg.det(A + np.eye(n)*alpha)/ np.power(alpha, n-np.rank(A))
-
-    def fit(self, x):
-        self.mu = x.mean(axis=0)
-        self.sigma = np.cov(x.T)
-        self.sigma[self.sigma==0] = self.min_covar
-        if(self.covariance_type == 'diag'):
-            self.sigma = np.eye(np.alen(self.sigma))*self.sigma
-
-        self.size = x.shape[1]
-
-        self.det = np.linalg.det(self.sigma)
-        # If sigma is singular
-        if self.det == 0:
-            self.pseudo_det = self.pseudo_determinant(self.sigma*2*np.pi, self.alpha)
-            self.norm_const = 1.0/ np.sqrt(self.pseudo_det)
-            self.inv = np.linalg.pinv(self.sigma)
-        else:
-            self.norm_const = 1.0/ ( np.power((2*np.pi),float(self.size)/2) *
-                    np.sqrt(self.det) )
-            self.inv = np.linalg.inv(self.sigma)
-
-    def score(self,x):
-        x_mu = np.subtract(x,self.mu)
-        result = np.exp(-0.5 * np.diag(np.dot(x_mu,np.dot(self.inv,x_mu.T))))
-
-        return self.norm_const * result
-
-    @property
-    def means_(self):
-        return self.mu
-
-    @property
-    def covars_(self):
-        if self.covariance_type == 'diag':
-            return np.diag(self.sigma)
-        return self.sigma
-
-
-class MultivariateNormal(object):
-    def __init__(self, allow_singular=True, covariance_type='diag'):
-        self.allow_singular = allow_singular
-        self.covariance_type = covariance_type
-
-    def fit(self, x):
-        self.mu = x.mean(axis=0)
-        self.sigma = np.cov(x.T)
-        if self.covariance_type == 'diag':
-            self.sigma = np.eye(np.alen(self.sigma))*self.sigma
-
-        self.model = multivariate_normal(mean=self.mu, cov=self.sigma,
-                allow_singular=self.allow_singular)
-
-    def score(self,x):
-        return self.model.pdf(x)
-
-    @property
-    def means_(self):
-        return self.mu
-
-    @property
-    def covars_(self):
-        if self.covariance_type == 'diag':
-            return np.diag(self.sigma)
-        return self.sigma
 
 
 def export_results(table):
@@ -136,12 +58,6 @@ def mean_squared_error(x1, x2):
     return np.mean(np.power(np.subtract(x1, x2),2))
 
 
-# Columns for the DataFrame to compare the Density estimators
-columns_gaussians=['Dataset', 'MC iteration', 'N-fold id', 'Actual class',
-                   'Model', 'mean_mse','cov_mse', 'Prior']
-# Create a DataFrame to record all intermediate results
-df_gaussians = pd.DataFrame(columns=columns_gaussians)
-
 # Columns for the DataFrame
 columns=['Dataset', 'MC iteration', 'N-fold id', 'Actual class', 'Model',
         'AUC', 'Prior']
@@ -152,6 +68,7 @@ mc_iterations = 10
 n_folds = 10
 for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
     print('Dataset number {}'.format(i))
+    if name != 'ecoli': continue
     mldata.sumarize_datasets(name)
     for mc in np.arange(mc_iterations):
         skf = StratifiedKFold(dataset.target, n_folds=n_folds, shuffle=True)
@@ -176,38 +93,8 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
 
 
                     # Train a Density estimator
-                    model_mymvn = MyMultivariateNormal(covariance_type='diag')
-                    model_mymvn.fit(tr_class)
-
-                    model_mvn= MultivariateNormal(covariance_type='diag')
-                    model_mvn.fit(tr_class)
-
                     model_gmm = GMM(n_components=1, covariance_type='diag')
                     model_gmm.fit(tr_class)
-
-                    x_train_means = x_train.mean(axis=0)
-                    x_train_stds = x_train.std(axis=0)
-
-                    mse_mean_mymvn = mean_squared_error(model_mymvn.means_,
-                                                  x_train_means)
-                    mse_std_mymvn = mean_squared_error(model_mymvn.covars_,
-                                                  np.power(x_train_stds,2))
-                    mse_mean_mvn = mean_squared_error(model_mvn.means_,
-                                                  x_train_means)
-                    mse_std_mvn = mean_squared_error(model_mvn.covars_,
-                                                  np.power(x_train_stds,2))
-                    mse_mean_gmm = mean_squared_error(model_gmm.means_,
-                                                  x_train_means)
-                    mse_std_gmm = mean_squared_error(model_gmm.covars_,
-                                                  np.power(x_train_stds,2))
-                    dfaux = pd.DataFrame([[name, mc, test_fold, actual_class,
-                                         'MyMVN', mse_mean_mymvn, mse_std_mymvn, prior],
-                                        [name, mc, test_fold, actual_class,
-                                         'MVN', mse_mean_mvn, mse_std_mvn, prior],
-                                        [name, mc, test_fold, actual_class,
-                                         'GMM', mse_mean_gmm, mse_std_gmm, prior]],
-                                        columns=columns_gaussians)
-                    df_gaussians = df_gaussians.append(dfaux, ignore_index=True)
 
                     # Generate artificial data
                     new_data = model_gmm.sample(np.alen(tr_class))
@@ -227,8 +114,34 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
                     probs = bag.predict_proba(x_test)[:, 1]
                     scores = model_gmm.score(x_test)
 
-                    com_scores = (probs / np.clip(1.0 - probs,
-                                                  1e-16, 1.0)) * np.exp(scores)
+                    com_scores = (probs / np.clip(1.0 - probs, np.float32(1e-32), 1.0)) * (scores-scores.min())
+
+
+                    # Generate our new data
+                    # FIXME solve problem with #samples < #features
+                    pca=True
+                    if tr_class.shape[0] < tr_class.shape[1]:
+                        pca=False
+                    our_new_data = reject.create_reject_data(
+                                        tr_class, proportion=1,
+                                        method='uniform_hsphere', pca=pca,
+                                        pca_variance=0.99, pca_components=0,
+                                        hshape_cov=0, hshape_prop_in=0.99,
+                                        hshape_multiplier=1.5)
+                    our_new_data = np.vstack((tr_class, our_new_data))
+                    y = np.zeros(np.alen(our_new_data))
+                    y[:np.alen(tr_class)] = 1
+
+                    # Train Our Bag of Trees
+                    our_bag = BaggingClassifier(
+                        base_estimator=DecisionTreeClassifier(),
+                        n_estimators=10)
+                    our_bag.fit(our_new_data, y)
+                    # Combine the results
+                    our_probs = our_bag.predict_proba(x_test)[:, 1]
+
+                    our_comb_scores = (our_probs / np.clip(1.0 - our_probs,
+                            np.float32(1e-32), 1.0)) * (scores-scores.min())
 
                     # Scores for the Density estimator
                     auc_dens = roc_auc_score(t_labels, scores)
@@ -236,10 +149,10 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
                     auc_bag = roc_auc_score(t_labels, probs)
                     # Scores for the Combined model
                     auc_com = roc_auc_score(t_labels, com_scores)
-                    # Scores for the Density estimator
-                    auc_mvn = roc_auc_score(t_labels, model_mvn.score(x_test))
-                    # Scores for the Density estimator
-                    auc_mymvn = roc_auc_score(t_labels, model_mymvn.score(x_test))
+                    # Scores for our Bag of trees (trained on our data)
+                    auc_our_bag = roc_auc_score(t_labels, our_probs)
+                    # Scores for our Bag of trees (trained on our data)
+                    auc_our_comb = roc_auc_score(t_labels, our_comb_scores)
 
                     # Create a new DataFrame to append to the original one
                     dfaux = pd.DataFrame([[name, mc, test_fold, actual_class,
@@ -249,9 +162,9 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
                                         [name, mc, test_fold, actual_class,
                                          'P(X$|$A)', auc_dens, prior],
                                         [name, mc, test_fold, actual_class,
-                                         'MyMVN', auc_mymvn, prior],
+                                         'Our Bagg', auc_our_bag, prior],
                                         [name, mc, test_fold, actual_class,
-                                         'MVN', auc_mvn, prior]],
+                                         'Our Combined', auc_our_comb, prior]],
                                         columns=columns)
                     df = df.append(dfaux, ignore_index=True)
 
@@ -284,9 +197,3 @@ final_table =  final_results.pivot_table(values=['mean', 'std'],
 
 # Export the results in a csv and LaTeX file
 export_results(final_table)
-
-df_gaus_group = df_gaussians.groupby(['Dataset', 'Model']).mean()
-df_gaus_group.reset_index(inplace=True)
-gaus_table = df_gaus_group.pivot_table(values=['mean_mse', 'cov_mse'],
-                                       index=['Dataset'], columns=['Model'])
-gaus_table.to_csv('gaus_table.csv')
