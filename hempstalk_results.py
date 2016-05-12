@@ -19,7 +19,6 @@ import pandas as pd
 
 mldata = MLData()
 
-
 def export_results(table):
     def mean_format(x):
         return "%1.3f" % x
@@ -68,7 +67,6 @@ mc_iterations = 10
 n_folds = 10
 for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
     print('Dataset number {}'.format(i))
-    if name != 'ecoli': continue
     mldata.sumarize_datasets(name)
     for mc in np.arange(mc_iterations):
         skf = StratifiedKFold(dataset.target, n_folds=n_folds, shuffle=True)
