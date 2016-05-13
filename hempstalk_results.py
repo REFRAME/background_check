@@ -67,6 +67,11 @@ mc_iterations = 10
 n_folds = 10
 for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
     print('Dataset number {}'.format(i))
+    if name == 'MNIST':
+        # TODO get a stratified portion of the validation set [0:60000]
+        dataset._data = dataset._data[-10000:]
+        dataset._target = dataset._target[-10000:]
+
     mldata.sumarize_datasets(name)
     for mc in np.arange(mc_iterations):
         skf = StratifiedKFold(dataset.target, n_folds=n_folds, shuffle=True)
