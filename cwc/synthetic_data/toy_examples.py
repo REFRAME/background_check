@@ -71,7 +71,9 @@ def generate_gaussians(means=[[0,0]], covs=[[[1,0],[0,1]]], samples=[1],
         X = X[rand_indices,:]
         Y = Y[rand_indices]
 
-    return X, Y, hole_centers
+    if np.any(holes):
+        return X, Y, hole_centers
+    return X, Y
 
 def test_generate_gaussians():
     """This function generates two Gaussian distributions and plots them.
