@@ -2,7 +2,9 @@ from __future__ import division
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn import svm
 from sklearn.metrics import roc_curve
+from sklearn.metrics import auc
 from cwc.models.density_estimators import MyMultivariateNormal
 
 np.random.seed(42)
@@ -10,13 +12,13 @@ plt.ion()
 plt.rcParams['figure.figsize'] = (7,4)
 plt.rcParams['figure.autolayout'] = True
 
-colors = ['red', 'blue', 'yellow', 'orange', 'cyan']
+colors = ['red', 'blue', 'magenta']
 
-def one_vs_rest_roc_curve(y,p):
+def one_vs_rest_roc_curve(y,p, pos_label=0):
     """Returns the roc curve of class 0 vs the rest of the classes"""
     aux = np.copy(y)
     aux[aux!=0] = 1
-    return roc_curve(aux, p)
+    return roc_curve(aux, p, pos_label=0)
 
 def convex_hull(points):
     """Computes the convex hull of a set of 2D points.
@@ -62,7 +64,7 @@ def plot_data(x,y, fig=None, title=None):
     ax.legend()
 
 
-def plot_data_and_contourlines(x,y,x_grid,p0,p1, delta=50, fig=None, title=None):
+def plot_data_and_contourlines(x,y,x_grid,ps, delta=50, fig=None, title=None):
     if fig is None:
         fig = plt.figure('gaussians')
     fig.clf()
@@ -72,36 +74,18 @@ def plot_data_and_contourlines(x,y,x_grid,p0,p1, delta=50, fig=None, title=None)
     # HEATMAP OF PROBABILITIES
     #levels = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
     # TODO Change colors of the contour lines to the matching class
-    CS = ax.contour(x_grid[:,0].reshape(delta,delta),
-                     x_grid[:,1].reshape(delta,delta),
-                     p0.reshape(delta,-1), linewidths=3,
-                     alpha=1.0, cmap='autumn_r') # jet
-    ax.clabel(CS, fontsize=20, inline=2)
-    CS = ax.contour(x_grid[:,0].reshape(delta,delta),
-                     x_grid[:,1].reshape(delta,delta),
-                     p1.reshape(delta,-1), linewidths=3,
-                     alpha=1.0, cmap='winter_r') # jet_r
-    ax.clabel(CS, fontsize=20, inline=2)
-
-    if title is not None:
-        ax.set_title(title)
-
-
-def plot_posterior(x,y,x_grid, posterior, delta=50, fig=None, title=None):
-    if fig is None:
-        fig = plt.figure('posterior')
-    fig.clf()
-    plot_data(x,y,fig=fig)
-
-    ax = fig.add_subplot(111)
-    # HEATMAP OF PROBABILITIES
-    #levels = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
-    # TODO Change colors of the contour lines to the matching class
-    CS = ax.contour(x_grid[:,0].reshape(delta,delta),
-                     x_grid[:,1].reshape(delta,delta),
-                     posterior.reshape(delta,-1), linewidths=3,
-                     alpha=0.8)
-    ax.clabel(CS, fontsize=20, inline=2)
+    if len(ps) == 1:
+        cmaps= ['jet']
+    elif len(ps) == 2:
+        cmaps= ['autumn_r', 'winter_r']
+    else:
+        cmaps= ['jet']*len(ps)
+    for i, p in enumerate(ps):
+        CS = ax.contour(x_grid[:,0].reshape(delta,delta),
+                         x_grid[:,1].reshape(delta,delta),
+                         p.reshape(delta,-1), linewidths=3,
+                         alpha=1.0, cmap=cmaps[i]) # jet
+        ax.clabel(CS, fontsize=20, inline=2)
 
     if title is not None:
         ax.set_title(title)
@@ -120,23 +104,40 @@ def get_grid(x, delta=50):
     return x_grid
 
 
+def plot_roc_curve(y,p,fig=None,title=''):
+    if fig is None:
+        fig = plt.figure('roc_curve')
+    fig.clf()
+
+    roc = one_vs_rest_roc_curve(y, p)
+    auroc = auc(roc[0], roc[1])
+    ax = fig.add_subplot(111)
+    ax.plot(roc[0], roc[1])
+    ax.plot([0,1],[0,1], 'g--')
+    ax.plot([0,1],[1,0], 'g--')
+    upper_hull = convex_hull(zip(roc[0],roc[1]))
+    rg_hull, pg_hull = zip(*upper_hull)
+    plt.plot(rg_hull, pg_hull, 'r--')
+    ax.set_title('{} {}'.format(title, auroc))
+
+
 def main():
-    samples = [500,         # Class 1
-               500]         # Class 2
-    means = [[0,0],       # Class 1
-             [2,2]]       # Class 2
+    samples = np.array([500,         # Class 0
+                        500])         # Class 1
+    means = np.array([[0,0],       # Class 1
+                      [2,2]])       # Class 2
     covs = np.array([[[1,0],       # Class 1
-             [0,1]],
-            [[1,0],       # Class 2
-             [0,1]]])
+                      [0,1]],
+                     [[1,0],       # Class 2
+                      [0,1]]])
 
     mvn0 = MyMultivariateNormal(means[0], covs[0])
     mvn1 = MyMultivariateNormal(means[1], covs[1])
-    mvn2 = MyMultivariateNormal([-3,3], covs[0]*0.1)
+    mvn2 = MyMultivariateNormal([-4,4], covs[1])
 
     x0 = mvn0.sample(samples[0])
     x1 = mvn1.sample(samples[1])
-    x2 = mvn2.sample(300)
+    x2 = mvn2.sample(500)
 
     x = np.vstack([x0, x1, x2])
     y = np.hstack([np.zeros(len(x0)), np.ones(len(x1)),
@@ -147,116 +148,79 @@ def main():
     p0_grid =  mvn0.score(x_grid)
     p1_grid =  mvn1.score(x_grid)
 
-    prior = samples[0]/sum(samples)
-    posterior = (p0_grid*prior)/(p0_grid*prior+p1_grid*(1-prior))
+    prior = samples/sum(samples)
+    posterior = (p0_grid*prior[0])/(p0_grid*prior[0]+p1_grid*prior[1])
 
     fig = plt.figure('Density')
-    plot_data_and_contourlines(x,y,x_grid,p0_grid,p1_grid,delta=50,fig=fig, title='Density')
+    plot_data_and_contourlines(x,y,x_grid,[p0_grid,p1_grid],delta=50,fig=fig, title='Density')
+
     fig = plt.figure('Bayes')
-    plot_posterior(x,y,x_grid,posterior,delta=50, fig=fig, title='Bayes optimal')
+    plot_data_and_contourlines(x,y,x_grid,[posterior],delta=50, fig=fig, title='Bayes optimal')
+
+    q0 = mvn0.score(x)
+    fig = plt.figure('roc_density_0')
+    plot_roc_curve(y,q0, fig=fig, title='ROC Density class 0')
 
     fig = plt.figure('P_Miquel')
-    plot_data_and_contourlines(x,y,x_grid,p0_grid*posterior,p1_grid*(1-posterior)
+    plot_data_and_contourlines(x,y,x_grid,[p0_grid*posterior,p1_grid*(1-posterior)]
                                ,delta=50,fig=fig, title='P_Miquel')
     q0 = mvn0.score(x)
     q1 = mvn1.score(x)
-    posterior = (q0*prior)/(q0*prior+q1*(1-prior))
-    roc = one_vs_rest_roc_curve(y, q0*posterior)
+    posterior = (q0*prior[0])/(q0*prior[0]+q1*prior[1])
     fig = plt.figure('roc_miquel_posterior')
-    fig.clf()
-    ax = fig.add_subplot(111)
-    ax.plot(roc[1], roc[0])
-    ax.plot([0,1],[0,1], 'g--')
-    ax.plot([0,1],[1,0], 'g--')
-    upper_hull = convex_hull(zip(roc[1],roc[0]))
-    rg_hull, pg_hull = zip(*upper_hull)
-    plt.plot(rg_hull, pg_hull, 'r--')
-    ax.set_title('ROC Miquel posterior')
+    plot_roc_curve(y, posterior, fig=fig, title='ROC Miquel')
+
 
     q0 = mvn0.score(x)
-    roc = one_vs_rest_roc_curve(y, q0)
-    fig = plt.figure('roc_curve')
-    fig.clf()
-    ax = fig.add_subplot(111)
-    ax.plot(roc[1], roc[0])
-    ax.plot([0,1],[0,1], 'g--')
-    ax.plot([0,1],[1,0], 'g--')
-    upper_hull = convex_hull(zip(roc[1],roc[0]))
-    rg_hull, pg_hull = zip(*upper_hull)
-    plt.plot(rg_hull, pg_hull, 'r--')
-    ax.set_title('ROC Density class 0')
-
-
     q1 = mvn1.score(x)
-    q_posterior = (q0*prior)/(q0*prior+q1*(1-prior))
-    roc = one_vs_rest_roc_curve(y, q_posterior)
+    q_posterior = (q0*prior[0])/(q0*prior[0]+q1*prior[1])
     fig = plt.figure('roc_curve_posterior')
-    fig.clf()
-    ax = fig.add_subplot(111)
-    ax.plot(roc[1], roc[0])
-    ax.plot([0,1],[0,1], 'g--')
-    ax.plot([0,1],[1,0], 'g--')
-    upper_hull = convex_hull(zip(roc[1],roc[0]))
-    rg_hull, pg_hull = zip(*upper_hull)
-    plt.plot(rg_hull, pg_hull, 'r--')
-    ax.set_title('ROC Bayes Optimal')
-    #prior_background = 0.2
-    #density_background = 0.3
-    #posterior_vs_background = (p0_grid*(1-prior_background))/(p0_grid*(1-prior_background) + density_background*prior_background)
-    #new_posterior = posterior_vs_background*posterior
-    #plot_posterior(x,y,x_grid,new_posterior,delta=50)
+    plot_roc_curve(y, posterior, fig=fig, title='ROC Bayes Optimal')
 
-    P_t = 0.8
+
+
+    P_x_t = p0_grid*prior[0]+p1_grid*prior[1]
+    P_t = 0.8 # np.in1d(y,[0,1]).sum()/len(y)
     P_b = (1-P_t)
-    P_x_b = 0.3
-    numerator = p0_grid*prior*P_t
-    denominator = numerator + p1_grid*(1-prior)*P_t + P_x_b*P_b
+    max_value = np.maximum(mvn0.score([means[0]])*prior[0] + mvn1.score([means[0]])*prior[0],
+                           mvn0.score([means[1]])*prior[1] + mvn1.score([means[1]])*prior[1])
+    P_x_b = max_value-P_x_t
+
+    numerator = p0_grid*prior[0]*P_t
+    denominator = numerator + p1_grid*prior[1]*P_t + P_x_b*P_b
     P_t_0_x = numerator/denominator
 
-    numerator = p1_grid*(1-prior)*P_t
-    denominator = numerator + p0_grid*prior*P_t + P_x_b*P_b
+    numerator = p1_grid*prior[1]*P_t
+    denominator = numerator + p0_grid*prior[0]*P_t + P_x_b*P_b
     P_t_1_x = numerator/denominator
     fig = plt.figure('P_telmo')
-    plot_data_and_contourlines(x,y,x_grid,P_t_0_x,P_t_1_x,delta=50, fig=fig, title='P_telmo')
+    plot_data_and_contourlines(x,y,x_grid,[P_t_0_x,P_t_1_x],delta=50, fig=fig, title='P_telmo')
 
 
     # Compute predictions for all samples
-    P_t = 0.8
-    P_b = (1-P_t)
-    P_x_b = 0.3
-    numerator = q0*prior*P_t
-    denominator = numerator + q1*(1-prior)*P_t + P_x_b*P_b
+    P_x_t = q0*prior[0]+q1*prior[1]
+    P_x_b = max_value-P_x_t
+    numerator = q0*prior[0]*P_t
+    denominator = numerator + q1*prior[1]*P_t + P_x_b*P_b
     P_t_0_x = numerator/denominator
 
-    # Plot the ROC curve
-    roc = one_vs_rest_roc_curve(y, P_t_0_x)
     fig = plt.figure('roc_telmo_posterior')
-    fig.clf()
-    ax = fig.add_subplot(111)
-    ax.plot(roc[1], roc[0])
-    ax.plot([0,1],[0,1], 'g--')
-    ax.plot([0,1],[1,0], 'g--')
-    upper_hull = convex_hull(zip(roc[1],roc[0]))
-    rg_hull, pg_hull = zip(*upper_hull)
-    plt.plot(rg_hull, pg_hull, 'r--')
-    ax.set_title('ROC Telmo posterior')
+    plot_roc_curve(y, P_t_0_x, fig=fig, title='ROC Telmo')
 
 
+    # SVC
+    x0_train = mvn0.sample(samples[0])
+    x1_train = mvn1.sample(samples[1])
 
+    x_train = np.vstack([x0_train, x1_train])
+    y_train = np.hstack([np.zeros(len(x0_train)), np.ones(len(x1_train))]).astype(int)
 
-    #plot_posterior(x,y,x_grid,(p0_grid+p1_grid)/2,delta=50)
-    #plot_posterior(x,y,x_grid,posterior,delta=50)
-
-    #P_t = 0.8
-    #P_b = (1-P_t)
-    #P_x_b = 0.3
-    #P_0_t_x = posterior
-    #P_x_t = p0_grid*prior+p1_grid*(1-prior)
-    #numerator = P_0_t_x*P_x_t*P_t
-    #denominator = P_x_t*P_t*P_x_b*P_b
-    #P_telmo = numerator/denominator
-    #fig = plt.figure('P_telmo')
-    #plot_posterior(x,y,x_grid,posterior,delta=50, fig=fig, title='P_telmo')
+    svc = svm.SVC(probability=True)
+    svc.fit(x_train,y_train)
+    svc_pred = svc.predict_proba(x_grid)
+    fig = plt.figure('svm')
+    plot_data_and_contourlines(x,y,x_grid,[svc_pred[:,0],svc_pred[:,1]],delta=50,
+            fig=fig, title='P_SVC')
 
     return 0
 
