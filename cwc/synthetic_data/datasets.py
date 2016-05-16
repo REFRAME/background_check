@@ -31,6 +31,10 @@ class Dataset(object):
     def target(self):
         return self._target
 
+    #@target.setter
+    #def target(self, new_value):
+    #    self._target = new_value
+
     @property
     def data(self):
         return self._data
@@ -63,7 +67,9 @@ class MLData(object):
                     'pendigits':'uci-20070111 pendigits',
                     'sonar':'sonar',
                     'vehicle':'vehicle',
-                    'waveform-5000':'datasets-UCI waveform-5000'}
+                    'waveform-5000':'datasets-UCI waveform-5000',
+                    'scene-classification':'scene-classification',
+                    'MNIST':'MNIST (original)'}
 
     def __init__(self, data_home='./datasets/'):
         self.data_home = data_home
@@ -103,6 +109,10 @@ class MLData(object):
         elif name=='mfeat-morphological':
             data = mldata.target.T
             target = mldata.data
+        elif name=='scene-classification':
+            data = mldata.data
+            target = mldata.target.toarray()
+            target = target.transpose()[:,4]
         else:
             try:
                 data = mldata.data
