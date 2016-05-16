@@ -131,8 +131,11 @@ def create_reject_data(X, proportion, method, pca=False, pca_components=0,
                        'mutually exclusive')
 
     if hshape_prop_in:
-        X_transform = pc.transform(X)
-        distances = numpy.linalg.norm(X_transform, axis=1)
+        if pca == True:
+            X_transform = pc.transform(X)
+            distances = numpy.linalg.norm(X_transform, axis=1)
+        else:
+            distances = numpy.linalg.norm(X, axis=1)
         distances.sort()
         radius = distances[int(X.shape[0]*hshape_prop_in)-1]
     else:
