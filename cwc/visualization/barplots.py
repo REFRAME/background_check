@@ -1,4 +1,6 @@
 import numpy as np
+from math import ceil
+from math import sqrt
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 
