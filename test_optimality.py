@@ -7,6 +7,8 @@ from sklearn.metrics import roc_curve
 from sklearn.metrics import auc
 from cwc.models.density_estimators import MyMultivariateNormal
 
+import pandas as pd
+
 np.random.seed(42)
 plt.ion()
 plt.rcParams['figure.figsize'] = (7,4)
@@ -118,10 +120,83 @@ def plot_roc_curve(y,p,fig=None,title=''):
     upper_hull = convex_hull(zip(roc[0],roc[1]))
     rg_hull, pg_hull = zip(*upper_hull)
     plt.plot(rg_hull, pg_hull, 'r--')
-    ax.set_title('{} {}'.format(title, auroc))
+    ax.set_title('{0} {1:.3f}'.format(title, auroc))
 
+    return auroc
+
+class BackgroundClass(object):
+    def __init__(self, i=1):
+        self.samples, self.mean, self.cov = self.background_description(i)
+        self.mvn = MyMultivariateNormal(self.mean, self.cov)
+
+    def set_experiment(self, i):
+        self.__init__(i)
+
+    def sample(self, n_samples=None):
+        if n_samples is not None:
+            return self.mvn.sample(n_samples)
+        return self.mvn.sample(self.samples)
+
+    @property
+    def n_experiments(self):
+        return 8
+
+    @property
+    def experiment_ids(self):
+        return range(self.n_experiments)
+
+    def background_description(self, i, samples=500):
+        if i==0:
+            samples = 0
+            mean = np.array([0,0])
+            cov = np.array([[1,0], [0,1]])
+        elif i==1:
+            samples = samples
+            mean = np.array([0,0])
+            cov = np.array([[1,0], [0,1]])
+        elif i==2:
+            samples = samples
+            mean = np.array([1,1])
+            cov = np.array([[1,0], [0,1]])
+        elif i==3:
+            samples = samples
+            mean = np.array([2,2])
+            cov = np.array([[1,0], [0,1]])
+        elif i==4:
+            samples = samples
+            mean = np.array([-3,3])
+            cov = np.array([[1,0], [0,1]])
+        elif i==5:
+            samples = samples
+            mean = np.array([-2,4])
+            cov = np.array([[1,0], [0,1]])
+        elif i==6:
+            samples = samples
+            mean = np.array([-1,5])
+            cov = np.array([[1,0], [0,1]])
+        elif i==7:
+            samples = samples
+            mean = np.array([0,6])
+            cov = np.array([[1,0], [0,1]])
+        else:
+            raise Exception('Unknown experiment')
+
+        return samples, mean, cov
+
+class MyDataFrame(pd.DataFrame):
+    def append_rows(self, rows):
+        dfaux = pd.DataFrame(rows, columns=self.columns)
+        return self.append(dfaux, ignore_index=True)
 
 def main():
+    np.random.seed(42)
+
+    # Columns for the DataFrame
+    columns=['Experiment', 'Method', 'AUC']
+    # Create a DataFrame to record all intermediate results
+    df = MyDataFrame(columns=columns)
+
+    # Two original classes
     samples = np.array([500,         # Class 0
                         500])         # Class 1
     means = np.array([[0,0],       # Class 1
@@ -133,94 +208,110 @@ def main():
 
     mvn0 = MyMultivariateNormal(means[0], covs[0])
     mvn1 = MyMultivariateNormal(means[1], covs[1])
-    mvn2 = MyMultivariateNormal([-4,4], covs[1])
-
     x0 = mvn0.sample(samples[0])
     x1 = mvn1.sample(samples[1])
-    x2 = mvn2.sample(500)
 
-    x = np.vstack([x0, x1, x2])
-    y = np.hstack([np.zeros(len(x0)), np.ones(len(x1)),
-        np.ones(len(x2))*2]).astype(int)
+    bg_class = BackgroundClass()
+    for bg_class_id in bg_class.experiment_ids:
+        # Background
+        bg_class.set_experiment(bg_class_id)
+        xb = bg_class.sample()
 
-    x_grid = get_grid(x)
+        x = np.vstack([x0, x1, xb])
+        y = np.hstack([np.zeros(len(x0)), np.ones(len(x1)),
+            np.ones(len(xb))*2]).astype(int)
 
-    p0_grid =  mvn0.score(x_grid)
-    p1_grid =  mvn1.score(x_grid)
+        x_grid = get_grid(x)
 
-    prior = samples/sum(samples)
-    posterior = (p0_grid*prior[0])/(p0_grid*prior[0]+p1_grid*prior[1])
+        p0_grid =  mvn0.score(x_grid)
+        p1_grid =  mvn1.score(x_grid)
 
-    fig = plt.figure('Density')
-    plot_data_and_contourlines(x,y,x_grid,[p0_grid,p1_grid],delta=50,fig=fig, title='Density')
+        prior = samples/sum(samples)
+        posterior = (p0_grid*prior[0])/(p0_grid*prior[0]+p1_grid*prior[1])
 
-    fig = plt.figure('Bayes')
-    plot_data_and_contourlines(x,y,x_grid,[posterior],delta=50, fig=fig, title='Bayes optimal')
+        fig = plt.figure('Density')
+        plot_data_and_contourlines(x,y,x_grid,[p0_grid,p1_grid],delta=50,fig=fig, title='Density')
 
-    q0 = mvn0.score(x)
-    fig = plt.figure('roc_density_0')
-    plot_roc_curve(y,q0, fig=fig, title='ROC Density class 0')
+        fig = plt.figure('Bayes')
+        plot_data_and_contourlines(x,y,x_grid,[posterior],delta=50, fig=fig, title='Bayes optimal')
 
-    fig = plt.figure('P_Miquel')
-    plot_data_and_contourlines(x,y,x_grid,[p0_grid*posterior,p1_grid*(1-posterior)]
-                               ,delta=50,fig=fig, title='P_Miquel')
-    q0 = mvn0.score(x)
-    q1 = mvn1.score(x)
-    posterior = (q0*prior[0])/(q0*prior[0]+q1*prior[1])
-    fig = plt.figure('roc_miquel_posterior')
-    plot_roc_curve(y, posterior, fig=fig, title='ROC Miquel')
+        q0 = mvn0.score(x)
+        fig = plt.figure('roc_density_0')
+        auroc = plot_roc_curve(y,q0, fig=fig, title='ROC Density class 0')
+        df = df.append_rows([[bg_class_id, 'Density_0', auroc]])
 
-
-    q0 = mvn0.score(x)
-    q1 = mvn1.score(x)
-    q_posterior = (q0*prior[0])/(q0*prior[0]+q1*prior[1])
-    fig = plt.figure('roc_curve_posterior')
-    plot_roc_curve(y, posterior, fig=fig, title='ROC Bayes Optimal')
-
-
-
-    P_x_t = p0_grid*prior[0]+p1_grid*prior[1]
-    P_t = 0.8 # np.in1d(y,[0,1]).sum()/len(y)
-    P_b = (1-P_t)
-    max_value = np.maximum(mvn0.score([means[0]])*prior[0] + mvn1.score([means[0]])*prior[0],
-                           mvn0.score([means[1]])*prior[1] + mvn1.score([means[1]])*prior[1])
-    P_x_b = max_value-P_x_t
-
-    numerator = p0_grid*prior[0]*P_t
-    denominator = numerator + p1_grid*prior[1]*P_t + P_x_b*P_b
-    P_t_0_x = numerator/denominator
-
-    numerator = p1_grid*prior[1]*P_t
-    denominator = numerator + p0_grid*prior[0]*P_t + P_x_b*P_b
-    P_t_1_x = numerator/denominator
-    fig = plt.figure('P_telmo')
-    plot_data_and_contourlines(x,y,x_grid,[P_t_0_x,P_t_1_x],delta=50, fig=fig, title='P_telmo')
+        fig = plt.figure('P_Miquel')
+        plot_data_and_contourlines(x,y,x_grid,[p0_grid*posterior,p1_grid*(1-posterior)]
+                                   ,delta=50,fig=fig, title='P_Miquel')
+        q0 = mvn0.score(x)
+        q1 = mvn1.score(x)
+        posterior = ((q0**2)*prior[0])/(q0*prior[0]+q1*prior[1])
+        fig = plt.figure('roc_miquel_posterior')
+        auroc = plot_roc_curve(y, posterior, fig=fig, title='ROC Miquel')
+        df = df.append_rows([[bg_class_id, 'Miquel', auroc]])
 
 
-    # Compute predictions for all samples
-    P_x_t = q0*prior[0]+q1*prior[1]
-    P_x_b = max_value-P_x_t
-    numerator = q0*prior[0]*P_t
-    denominator = numerator + q1*prior[1]*P_t + P_x_b*P_b
-    P_t_0_x = numerator/denominator
-
-    fig = plt.figure('roc_telmo_posterior')
-    plot_roc_curve(y, P_t_0_x, fig=fig, title='ROC Telmo')
+        q0 = mvn0.score(x)
+        q1 = mvn1.score(x)
+        q_posterior = (q0*prior[0])/(q0*prior[0]+q1*prior[1])
+        fig = plt.figure('roc_curve_posterior')
+        auroc = plot_roc_curve(y, q_posterior, fig=fig, title='ROC Bayes Optimal')
+        df = df.append_rows([[bg_class_id, 'Bayes_Optimal', auroc]])
 
 
-    # SVC
-    x0_train = mvn0.sample(samples[0])
-    x1_train = mvn1.sample(samples[1])
+        P_x_t = p0_grid*prior[0]+p1_grid*prior[1]
+        P_t = 0.8 # np.in1d(y,[0,1]).sum()/len(y)
+        P_b = (1-P_t)
+        max_value = np.maximum(mvn0.score([means[0]])*prior[0] + mvn1.score([means[0]])*prior[0],
+                               mvn0.score([means[1]])*prior[1] + mvn1.score([means[1]])*prior[1])
+        P_x_b = max_value-P_x_t
 
-    x_train = np.vstack([x0_train, x1_train])
-    y_train = np.hstack([np.zeros(len(x0_train)), np.ones(len(x1_train))]).astype(int)
+        numerator = p0_grid*prior[0]*P_t
+        denominator = numerator + p1_grid*prior[1]*P_t + P_x_b*P_b
+        P_t_0_x = numerator/denominator
 
-    svc = svm.SVC(probability=True)
-    svc.fit(x_train,y_train)
-    svc_pred = svc.predict_proba(x_grid)
-    fig = plt.figure('svm')
-    plot_data_and_contourlines(x,y,x_grid,[svc_pred[:,0],svc_pred[:,1]],delta=50,
-            fig=fig, title='P_SVC')
+        numerator = p1_grid*prior[1]*P_t
+        denominator = numerator + p0_grid*prior[0]*P_t + P_x_b*P_b
+        P_t_1_x = numerator/denominator
+        fig = plt.figure('P_telmo')
+        plot_data_and_contourlines(x,y,x_grid,[P_t_0_x,P_t_1_x],delta=50, fig=fig, title='P_telmo')
+
+
+        # Compute predictions for all samples
+        P_x_t = q0*prior[0]+q1*prior[1]
+        P_x_b = max_value-P_x_t
+        numerator = q0*prior[0]*P_t
+        denominator = numerator + q1*prior[1]*P_t + P_x_b*P_b
+        P_t_0_x = numerator/denominator
+
+        fig = plt.figure('roc_telmo_posterior')
+        auroc = plot_roc_curve(y, P_t_0_x, fig=fig, title='ROC Telmo')
+        df = df.append_rows([[bg_class_id, 'Telmo', auroc]])
+
+
+        # SVC
+        x0_train = mvn0.sample(samples[0])
+        x1_train = mvn1.sample(samples[1])
+
+        x_train = np.vstack([x0_train, x1_train])
+        y_train = np.hstack([np.zeros(len(x0_train)), np.ones(len(x1_train))]).astype(int)
+
+        svc = svm.SVC(probability=True)
+        svc.fit(x_train,y_train)
+        svc_pred = svc.predict_proba(x_grid)
+        fig = plt.figure('svm')
+        plot_data_and_contourlines(x,y,x_grid,[svc_pred[:,0],svc_pred[:,1]],delta=50,
+                fig=fig, title='P_SVC')
+
+        predictions = svc.predict_proba(x)
+        fig = plt.figure('roc_svc')
+        auroc = plot_roc_curve(y, predictions[:,0], fig=fig, title='ROC SVC')
+        df = df.append_rows([[bg_class_id, 'SVC', auroc]])
+
+    df = df.convert_objects(convert_numeric=True)
+    final_table =  df.pivot_table(values=['AUC'], index=['Experiment'],
+                                  columns=['Method'])
+    print final_table
 
     return 0
 
