@@ -14,13 +14,14 @@ plt.ion()
 plt.rcParams['figure.figsize'] = (7,4)
 plt.rcParams['figure.autolayout'] = True
 
-colors = ['red', 'blue', 'magenta']
+colors = ['red', 'blue', 'white']
 
 def one_vs_rest_roc_curve(y,p, pos_label=0):
     """Returns the roc curve of class 0 vs the rest of the classes"""
     aux = np.zeros_like(y)
     aux[y!=pos_label] = 1
     return roc_curve(aux, p, pos_label=0)
+
 
 def convex_hull(points):
     """Computes the convex hull of a set of 2D points.
@@ -54,6 +55,7 @@ def convex_hull(points):
         upper.append(p)
 
     return upper
+
 
 def plot_data(x,y, fig=None, title=None):
     if fig is None:
@@ -124,6 +126,7 @@ def plot_roc_curve(y,p,fig=None,title='', pos_label=0):
 
     return auroc
 
+
 class BackgroundClass(object):
     def __init__(self, i=1):
         self.n_samples, self.mean, self.cov = self.background_description(i)
@@ -139,54 +142,32 @@ class BackgroundClass(object):
 
     @property
     def n_experiments(self):
-        return 8
+        return len(self.description)
 
     @property
     def experiment_ids(self):
         return range(self.n_experiments)
 
     def background_description(self, i, samples=500):
-        if i==0:
-            samples = 0
-            mean = np.array([0,0])
-            cov = np.array([[1,0], [0,1]])
-        elif i==1:
-            samples = samples
-            mean = np.array([0,0])
-            cov = np.array([[1,0], [0,1]])
-        elif i==2:
-            samples = samples
-            mean = np.array([1,1])
-            cov = np.array([[1,0], [0,1]])
-        elif i==3:
-            samples = samples
-            mean = np.array([2,2])
-            cov = np.array([[1,0], [0,1]])
-        elif i==4:
-            samples = samples
-            mean = np.array([-3,3])
-            cov = np.array([[1,0], [0,1]])
-        elif i==5:
-            samples = samples
-            mean = np.array([-2,4])
-            cov = np.array([[1,0], [0,1]])
-        elif i==6:
-            samples = samples
-            mean = np.array([-1,5])
-            cov = np.array([[1,0], [0,1]])
-        elif i==7:
-            samples = samples
-            mean = np.array([0,6])
-            cov = np.array([[1,0], [0,1]])
-        else:
-            raise Exception('Unknown experiment')
+        self.description = [(0,       [0,0],   [[1,0], [0,1]]),
+                            (samples, [-1,-1], [[1,0], [0,1]]),
+                            (samples, [0,0],   [[1,0], [0,1]]),
+                            (samples, [1,1],   [[1,0], [0,1]]),
+                            (samples, [-4,2],  [[1,0], [0,1]]),
+                            (samples, [-3,3],  [[1,0], [0,1]]),
+                            (samples, [-2,4],  [[1,0], [0,1]]),
+                            (samples, [0,6],   [[1,0], [0,1]]),
+                            (samples, [-6,0],  [[1,0], [0,1]])]
+        if i >= len(self.description):
+            raise Exception('Unknown background description id')
+        return self.description[i]
 
-        return samples, mean, cov
 
 class MyDataFrame(pd.DataFrame):
     def append_rows(self, rows):
         dfaux = pd.DataFrame(rows, columns=self.columns)
         return self.append(dfaux, ignore_index=True)
+
 
 def main():
     np.random.seed(42)
@@ -199,8 +180,8 @@ def main():
     # Two original classes
     samples = np.array([500,         # Class 0
                         500])         # Class 1
-    means = np.array([[0,0],       # Class 1
-                      [2,2]])       # Class 2
+    means = np.array([[-1,-1],       # Class 1
+                      [1,1]])       # Class 2
     covs = np.array([[[1,0],       # Class 1
                       [0,1]],
                      [[1,0],       # Class 2
@@ -216,9 +197,9 @@ def main():
         y_samples.append(np.ones(samples[i])*i)
 
     bg_class = BackgroundClass()
-    for bg_class_id in [1]: # bg_class.experiment_ids:
-        x = x_samples
-        y = y_samples
+    for bg_class_id in bg_class.experiment_ids:
+        x = x_samples[:]
+        y = y_samples[:]
 
         # Background
         bg_class.set_experiment(bg_class_id)
@@ -248,7 +229,7 @@ def main():
         plot_data_and_contourlines(x,y,x_grid,[posterior[:,0], posterior[:,1]], fig=fig, title='Bayes optimal')
 
         # Telmo
-        P_t = 0.8 # np.in1d(y,[0,1]).sum()/len(y)
+        P_t = 0.99 # np.in1d(y,[0,1]).sum()/len(y)
         P_b = (1-P_t)
         # FIXME look if the priors where right
         max_value = np.maximum(mvn[0].score([means[0]])*prior[0] + mvn[1].score([means[0]])*prior[0],
@@ -264,68 +245,77 @@ def main():
         fig = plt.figure('P_telmo')
         plot_data_and_contourlines(x,y,x_grid,[P_t_x[:,0],P_t_x[:,1]], fig=fig, title='P_telmo')
 
-        # SVC
+        # SVC RBF
         x_train = np.vstack(x_samples)
         y_train = np.hstack(y_samples).astype(int)
 
-        svc = svm.SVC(probability=True)
+        svc = svm.SVC(probability=True, kernel='linear')
         svc.fit(x_train,y_train)
         svc_pred = svc.predict_proba(x_grid)
         fig = plt.figure('svm')
         plot_data_and_contourlines(x,y,x_grid,[svc_pred[:,0],svc_pred[:,1]],
-                fig=fig, title='P_SVC')
+                                   fig=fig, title='P_SVC')
 
-        P_x = []
+        svc_rbf = svm.SVC(probability=True, kernel='rbf', gamma='auto')
+        svc_rbf.fit(x_train,y_train)
+        svc_rbf_pred = svc_rbf.predict_proba(x_grid)
+        fig = plt.figure('svm_rbf')
+        plot_data_and_contourlines(x,y,x_grid,[svc_rbf_pred[:,0],
+                                   svc_rbf_pred[:,1]], fig=fig, title='P_SVC_rbf')
+
+        svc_poly = svm.SVC(probability=True, kernel='poly', gamma='auto',
+                           degree=3)
+        svc_poly.fit(x_train,y_train)
+        svc_poly_pred = svc_poly.predict_proba(x_grid)
+        fig = plt.figure('svm_poly')
+        plot_data_and_contourlines(x,y,x_grid,[svc_poly_pred[:,0],
+                                   svc_poly_pred[:,1]], fig=fig, title='P_SVC_poly')
+
+        # Get the predictions for all the models
+        predictions = {}
+        P_x_t_y = []
         for key in mvn.keys():
-            P_x.append(mvn[key].score(x))
-        P_x = np.vstack(P_x).T
-        P_y_x = P_x/np.sum(P_x, axis=1)[:,None]
+            P_x_t_y.append(mvn[key].score(x))
+        P_x_t_y = np.vstack(P_x_t_y).T
+        predictions['Density'] = P_x_t_y
+        P_y_x = P_x_t_y/np.sum(P_x_t_y, axis=1)[:,None]
+        predictions['Bayes_optimal'] = P_y_x
 
         svc_p_y_x = svc.predict_proba(x)
+        predictions['SVC_linear'] = svc_p_y_x
+        svc_rbf_p_y_x = svc_rbf.predict_proba(x)
+        predictions['SVC_rbf'] = svc_rbf_p_y_x
+        svc_poly_p_y_x = svc_poly.predict_proba(x)
+        predictions['SVC_poly'] = svc_poly_p_y_x
+
+        # Our posterior
+        P_x_t = np.sum(P_x_t_y*prior, axis=1)
+        P_x_b = max_value-P_x_t
+        numerator = P_x_t_y*prior*P_t
+        denominator = np.sum(numerator, axis=1) + P_x_b*P_b
+        P_t_y_x = numerator/denominator[:,None]
+        predictions['Our_Posterior'] = P_t_y_x
 
         for pos_label in [0, 1]:
-            # Density
-            fig = plt.figure('roc_density_0')
-            auroc = plot_roc_curve(y,P_x[:,pos_label], fig=fig, title='ROC Density class 0',
-                                   pos_label=pos_label)
-            df = df.append_rows([[bg_class_id, pos_label, 'Density_0', auroc]])
-
-            # Bayes Optimal
-            fig = plt.figure('roc_curve_posterior')
-            auroc = plot_roc_curve(y, P_y_x[:,pos_label], fig=fig, title='ROC Bayes Optimal',
-                                   pos_label=pos_label)
-            df = df.append_rows([[bg_class_id, pos_label, 'Bayes_Optimal', auroc]])
-
-
-            # SVC
-            fig = plt.figure('roc_svc')
-            auroc = plot_roc_curve(y, svc_p_y_x[:,pos_label], fig=fig, title='ROC SVC',
-                    pos_label=pos_label)
-            df = df.append_rows([[bg_class_id, pos_label, 'SVC', auroc]])
-
-            ## TODO rewrite this code in the new format
-            ## Telmo
-            ## Compute predictions for all samples
-            # P_x_t = q0*prior[0]+q1*prior[1]
-            # P_x_b = max_value-P_x_t
-            # numerator = q0*prior[0]*P_t
-            # denominator = numerator + q1*prior[1]*P_t + P_x_b*P_b
-            # P_t_0_x = numerator/denominator
-
-            # fig = plt.figure('roc_telmo_posterior')
-            # auroc = plot_roc_curve(y, P_t_0_x, fig=fig, title='ROC Telmo',
-            #                        pos_label=pos_label)
-            # df = df.append_rows([[bg_class_id, pos_label, 'Telmo', auroc]])
-
-
-            print df
+            for method, prediction in predictions.iteritems():
+                fig = plt.figure('roc_{}'.format(method))
+                auroc = plot_roc_curve(y, prediction[:,pos_label], fig=fig,
+                                       title='ROC {}'.format(method),
+                                       pos_label=pos_label)
+                df = df.append_rows([[bg_class_id, pos_label, method, auroc]])
 
     df = df.convert_objects(convert_numeric=True)
-    final_table =  df.pivot_table(values=['AUC'], index=['Experiment'],
+    print df
+    table =  df.pivot_table(values=['AUC'], index=['Experiment'],
                                   columns=['Method', 'Pos_label'])
-    print final_table
+    table.to_csv('table.csv', escape=False)
+    # TODO consider the priors
+    table_mean = df.pivot_table(values=['AUC'], index=['Experiment'],
+                                  columns=['Method'], aggfunc=[np.mean])
+    table_mean.to_csv('table_mean.csv', escape=False)
 
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())
