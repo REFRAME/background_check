@@ -16,6 +16,9 @@ plt.rcParams['figure.autolayout'] = True
 
 colors = ['red', 'blue', 'white']
 
+def normalized_brier_score(y, prediction):
+    return ((prediction/np.max(prediction) - y)**2).mean()
+
 def one_vs_rest_roc_curve(y,p, pos_label=0):
     """Returns the roc curve of class 0 vs the rest of the classes"""
     aux = np.zeros_like(y)
@@ -127,6 +130,12 @@ def plot_roc_curve(y,p,fig=None,title='', pos_label=0):
     return auroc
 
 
+def plot_cost_curve(y,p,fig=None,title='', pos_label=0):
+    if fig is None:
+        fig = plt.figure('roc_curve')
+    fig.clf()
+
+
 class BackgroundClass(object):
     def __init__(self, i=1):
         self.n_samples, self.mean, self.cov = self.background_description(i)
@@ -169,7 +178,7 @@ class MyDataFrame(pd.DataFrame):
         return self.append(dfaux, ignore_index=True)
 
 
-def main():
+def main(pos_labels=[0,1], experiment_ids='all'):
     np.random.seed(42)
 
     # Columns for the DataFrame
@@ -197,7 +206,9 @@ def main():
         y_samples.append(np.ones(samples[i])*i)
 
     bg_class = BackgroundClass()
-    for bg_class_id in bg_class.experiment_ids:
+    if experiment_ids == 'all':
+        experiment_ids = bg_class.experiment_ids
+    for bg_class_id in experiment_ids:
         x = x_samples[:]
         y = y_samples[:]
 
@@ -228,7 +239,7 @@ def main():
         fig = plt.figure('Bayes')
         plot_data_and_contourlines(x,y,x_grid,[posterior[:,0], posterior[:,1]], fig=fig, title='Bayes optimal')
 
-        # Telmo
+        # Our Posterior
         P_t = 0.99 # np.in1d(y,[0,1]).sum()/len(y)
         P_b = (1-P_t)
         # FIXME look if the priors where right
@@ -296,13 +307,55 @@ def main():
         P_t_y_x = numerator/denominator[:,None]
         predictions['Our_Posterior'] = P_t_y_x
 
-        for pos_label in [0, 1]:
+        for pos_label in pos_labels:
             for method, prediction in predictions.iteritems():
                 fig = plt.figure('roc_{}'.format(method))
                 auroc = plot_roc_curve(y, prediction[:,pos_label], fig=fig,
                                        title='ROC {}'.format(method),
                                        pos_label=pos_label)
                 df = df.append_rows([[bg_class_id, pos_label, method, auroc]])
+
+                roc = one_vs_rest_roc_curve(y, prediction[:,pos_label],
+                                            pos_label=pos_label)
+                ## Q = np.zeros(len(roc[0]))
+                ## cs = [1,1]
+                ## c = cs[0]/sum(cs)
+                ## # FIXME look at the priors, they do not include the background
+                ## for i, (fpr, tpr, threshold) in enumerate(zip(roc[0], roc[1], roc[2])):
+                ##     Q[i] = 2*(c*prior[0]*(1-tpr) + (1-c)*prior[1]*fpr)
+                ## fig = plt.figure('cost_{}'.format(method))
+                ## fig.clf()
+                ## ax = fig.add_subplot(111)
+                ## ax.plot(roc[2][1:], Q[1:])
+                ## ax.set_xlabel('threshold')
+                ## ax.set_ylabel('$Q_{cost}$')
+
+                ##fig = plt.figure('cost_lines_{}'.format(method))
+                ##fig.clf()
+                ##ax = fig.add_subplot(111)
+                ### FIXME look at the priors, they do not include the background
+                ##Q_min = np.zeros(len(roc[0]))
+                ##Q_max = np.zeros(len(roc[0]))
+                ##for i, (fpr, tpr, threshold) in enumerate(zip(roc[0], roc[1], roc[2])):
+                ##    Q_min[i] = 2*(prior[1]*fpr)
+                ##    Q_max[i] = 2*(prior[0]*(1-tpr))
+                ##    ax.plot([0, 1], [Q_min[i], Q_max[i]], '--', c='0.75')
+                ##ax.set_xlabel('cost proportion')
+                ##ax.set_ylabel('$Q_{cost}$')
+
+                # FIXME look why the values for Q_skew are never larger than 1
+                fig = plt.figure('skew_lines_{}'.format(method))
+                fig.clf()
+                ax = fig.add_subplot(111)
+                Q_min = roc[0]
+                Q_max = 1-roc[1]
+                ax.plot(np.vstack((np.zeros_like(Q_min), np.ones_like(Q_max))), 
+                        np.vstack((Q_min, Q_max)), '--', c='0.80')
+                ax.set_xlabel('skew')
+                ax.set_ylabel('$Q_{skew}$')
+                # FIXME brier score for non-probabilistic outputs
+                brier_score = normalized_brier_score(y==pos_label,prediction[:,pos_label])
+                ax.set_title('{} BS = {}'.format(method, brier_score))
 
     df = df.convert_objects(convert_numeric=True)
     print df
@@ -314,8 +367,10 @@ def main():
                                   columns=['Method'], aggfunc=[np.mean])
     table_mean.to_csv('table_mean.csv', escape=False)
 
+    print table_mean
+
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(pos_labels=[0], experiment_ids=[4]))
