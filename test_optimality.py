@@ -121,11 +121,13 @@ def plot_roc_curve(y,p,fig=None,title='', pos_label=0):
     ax = fig.add_subplot(111)
     ax.plot(roc[0], roc[1])
     ax.plot([0,1],[0,1], 'g--')
-    ax.plot([0,1],[1,0], 'g--')
     upper_hull = convex_hull(zip(roc[0],roc[1]))
     rg_hull, pg_hull = zip(*upper_hull)
     plt.plot(rg_hull, pg_hull, 'r--')
     ax.set_title('{0} {1:.3f}'.format(title, auroc))
+    ax.set_ylim([0, 1.01])
+    ax.set_xlim([-0.01, 1.01])
+    ax.grid(True)
 
     return auroc
 
