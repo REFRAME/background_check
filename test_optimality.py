@@ -242,12 +242,14 @@ def main(pos_labels=[0,1], experiment_ids='all'):
         plot_data_and_contourlines(x,y,x_grid,[posterior[:,0], posterior[:,1]], fig=fig, title='Bayes optimal')
 
         # Our Posterior
-        P_t = 0.99 # np.in1d(y,[0,1]).sum()/len(y)
-        P_b = (1-P_t)
+        c2 = 1.0
+        c1 = 0.01
+        P_t = 1.0 - c1 # np.in1d(y,[0,1]).sum()/len(y)
+        P_b = c1
         # FIXME look if the priors where right
         max_value = np.maximum(mvn[0].score([means[0]])*prior[0] + mvn[1].score([means[0]])*prior[0],
                                mvn[0].score([means[1]])*prior[1] + mvn[1].score([means[1]])*prior[1])
-        P_x_b = max_value-P_x_t
+        P_x_b = max_value-c2*P_x_t
 
         # Probability of training and class given x
         numerator = p_grid*prior*P_t
@@ -304,7 +306,7 @@ def main(pos_labels=[0,1], experiment_ids='all'):
 
         # Our posterior
         P_x_t = np.sum(P_x_t_y*prior, axis=1)
-        P_x_b = max_value-P_x_t
+        P_x_b = max_value-c2*P_x_t
         numerator = P_x_t_y*prior*P_t
         denominator = np.sum(numerator, axis=1) + P_x_b*P_b
         P_t_y_x = numerator/denominator[:,None]
