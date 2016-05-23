@@ -241,7 +241,7 @@ def main(pos_labels=[0,1], experiment_ids='all'):
         fig = plt.figure('Bayes')
         plot_data_and_contourlines(x,y,x_grid,[posterior[:,0], posterior[:,1]], fig=fig, title='Bayes optimal')
 
-        # Our Posterior
+        # Background check
         c2 = 1.0
         c1 = 0.01
         P_t = 1.0 - c1 # np.in1d(y,[0,1]).sum()/len(y)
@@ -304,7 +304,7 @@ def main(pos_labels=[0,1], experiment_ids='all'):
         svc_poly_p_y_x = svc_poly.predict_proba(x)
         predictions['SVC_poly'] = svc_poly_p_y_x
 
-        # Our posterior
+        # Background check
         P_x_t = np.sum(P_x_t_y*prior, axis=1)
         P_x_b = max_value-c2*P_x_t
         numerator = P_x_t_y*prior*P_t
