@@ -23,7 +23,7 @@ def one_vs_rest_roc_curve(y,p, pos_label=0):
     """Returns the roc curve of class 0 vs the rest of the classes"""
     aux = np.zeros_like(y)
     aux[y!=pos_label] = 1
-    return roc_curve(aux, p, pos_label=0)
+    return roc_curve(aux, p, pos_label=pos_label)
 
 
 def convex_hull(points):
@@ -253,8 +253,9 @@ def main(pos_labels=[0,1], experiment_ids='all'):
             (P_x_b*P_b)[:,None]]), axis=1)
         P_t_x = numerator/denominator[:,None]
 
-        fig = plt.figure('P_telmo')
-        plot_data_and_contourlines(x,y,x_grid,[P_t_x[:,0],P_t_x[:,1]], fig=fig, title='P_telmo')
+        fig = plt.figure('Background check')
+        plot_data_and_contourlines(x,y,x_grid,[P_t_x[:,0],P_t_x[:,1]], fig=fig,
+                                   title='Background check')
 
         # SVC RBF
         x_train = np.vstack(x_samples)
@@ -305,7 +306,7 @@ def main(pos_labels=[0,1], experiment_ids='all'):
         numerator = P_x_t_y*prior*P_t
         denominator = np.sum(numerator, axis=1) + P_x_b*P_b
         P_t_y_x = numerator/denominator[:,None]
-        predictions['Our_Posterior'] = P_t_y_x
+        predictions['Background_check'] = P_t_y_x
 
         for pos_label in pos_labels:
             for method, prediction in predictions.iteritems():
