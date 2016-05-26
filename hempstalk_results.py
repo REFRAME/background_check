@@ -9,11 +9,15 @@ plt.ion()
 plt.rcParams['figure.figsize'] = (7,4)
 plt.rcParams['figure.autolayout'] = True
 
+from sklearn.metrics import roc_curve
 from sklearn.cross_validation import StratifiedKFold
 from sklearn.ensemble import BaggingClassifier
 from sklearn.tree import DecisionTreeClassifier
 from cwc.synthetic_data.datasets import MLData
 from cwc.synthetic_data import reject
+from cwc.visualization.cost_lines import plot_skew_lines
+from cwc.visualization.roc_analysis import plot_roc_curve
+from diary import Diary
 
 import pandas as pd
 
@@ -56,6 +60,22 @@ def separate_sets(x, y, test_fold_id, test_folds):
 def mean_squared_error(x1, x2):
     return np.mean(np.power(np.subtract(x1, x2),2))
 
+def generate_and_save_plots(labels, scores, diary, name, mc, test_fold,
+                            actual_class, method):
+    fig = plt.figure('roc_curve')
+    title = '{}_{}_{}_{}_{}'.format(name,mc,test_fold,actual_class,method)
+    plot_roc_curve(t_labels,scores,pos_label=1, fig=fig,
+                   title=title)
+    diary.save_figure(fig,'{}_roc_curve'.format(title))
+
+    fig = plt.figure('skew_lines')
+    plot_skew_lines(t_labels,scores,pos_label=1,
+            lower_envelope=True, fig=fig, title=title)
+    diary.save_figure(fig,'{}_skew_lines'.format(title))
+
+diary = Diary(name='hempstalk', path='results', overwrite=False,
+              fig_format='svg')
+diary.add_notebook('cross_validation')
 
 # Columns for the DataFrame
 columns=['Dataset', 'MC iteration', 'N-fold id', 'Actual class', 'Model',
@@ -63,14 +83,15 @@ columns=['Dataset', 'MC iteration', 'N-fold id', 'Actual class', 'Model',
 # Create a DataFrame to record all intermediate results
 df = pd.DataFrame(columns=columns)
 
-mc_iterations = 10
-n_folds = 10
+mc_iterations = 2
+n_folds = 2
 for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
     print('Dataset number {}'.format(i))
-    if name == 'MNIST':
+    if name == 'MNIST' or name == 'scene-classification':
         # TODO get a stratified portion of the validation set [0:60000]
-        dataset._data = dataset._data[-10000:]
-        dataset._target = dataset._target[-10000:]
+        #dataset._data = dataset._data[-10000:]
+        #dAtaset._target = dataset._target[-10000:]
+        continue
 
     mldata.sumarize_datasets(name)
     for mc in np.arange(mc_iterations):
@@ -86,6 +107,11 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
             prior_sum = 0
             for actual_class in dataset.classes:
                 tr_class = x_train[y_train == actual_class, :]
+                tr_class_unique_values = [np.unique(tr_class[:,column]).shape[0] for column in
+                                          range(tr_class.shape[1])]
+                cols_keep = np.where(np.not_equal(tr_class_unique_values,1))[0]
+                tr_class = tr_class[:,cols_keep]
+                x_test_cleaned = x_test[:,cols_keep]
                 t_labels = (y_test == actual_class).astype(int)
                 prior = np.alen(tr_class) / n_training
                 if np.alen(tr_class) > 1 and not all(t_labels == 0):
@@ -114,8 +140,8 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
                     bag.fit(new_data, y)
 
                     # Combine the results
-                    probs = bag.predict_proba(x_test)[:, 1]
-                    scores = model_gmm.score(x_test)
+                    probs = bag.predict_proba(x_test_cleaned)[:, 1]
+                    scores = model_gmm.score(x_test_cleaned)
 
                     com_scores = (probs / np.clip(1.0 - probs, np.float32(1e-32), 1.0)) * (scores-scores.min())
 
@@ -141,7 +167,7 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
                         n_estimators=10)
                     our_bag.fit(our_new_data, y)
                     # Combine the results
-                    our_probs = our_bag.predict_proba(x_test)[:, 1]
+                    our_probs = our_bag.predict_proba(x_test_cleaned)[:, 1]
 
                     our_comb_scores = (our_probs / np.clip(1.0 - our_probs,
                             np.float32(1e-32), 1.0)) * (scores-scores.min())
@@ -170,6 +196,18 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
                                          'Our Combined', auc_our_comb, prior]],
                                         columns=columns)
                     df = df.append(dfaux, ignore_index=True)
+
+                    generate_and_save_plots(t_labels, scores, diary, name, mc, test_fold,
+                                            actual_class, 'P(X$|$A)')
+                    generate_and_save_plots(t_labels, probs, diary, name, mc, test_fold,
+                                            actual_class, 'P(T$|$X)')
+                    generate_and_save_plots(t_labels, com_scores, diary, name, mc, test_fold,
+                                            actual_class, 'Combined')
+                    generate_and_save_plots(t_labels, our_probs, diary, name, mc, test_fold,
+                                            actual_class, 'Our_Bagg')
+                    generate_and_save_plots(t_labels, our_comb_scores, diary, name, mc, test_fold,
+                                            actual_class, 'Our_Combined')
+
 
 
 # Convert values to numeric

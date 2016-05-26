@@ -6,6 +6,7 @@ from sklearn import svm
 from sklearn.metrics import roc_curve
 from sklearn.metrics import auc
 from cwc.models.density_estimators import MyMultivariateNormal
+from cwc.visualization.cost_lines import plot_lower_envelope
 
 import pandas as pd
 
@@ -348,7 +349,6 @@ def main(pos_labels=[0,1], experiment_ids='all'):
                 ##ax.set_xlabel('cost proportion')
                 ##ax.set_ylabel('$Q_{cost}$')
 
-                # FIXME look why the values for Q_skew are never larger than 1
                 fig = plt.figure('skew_lines_{}'.format(method))
                 fig.clf()
                 ax = fig.add_subplot(111)
@@ -359,8 +359,20 @@ def main(pos_labels=[0,1], experiment_ids='all'):
                 ax.set_xlabel('skew')
                 ax.set_ylabel('$Q_{skew}$')
                 # FIXME brier score for non-probabilistic outputs
-                brier_score = normalized_brier_score(y==pos_label,prediction[:,pos_label])
-                ax.set_title('{} BS = {}'.format(method, brier_score))
+                #brier_score = normalized_brier_score(y==pos_label,prediction[:,pos_label])
+                #ax.set_title('{} BS = {}'.format(method, brier_score))
+                lines = np.vstack([np.vstack((np.zeros_like(Q_min), Q_min)),
+                                   np.vstack((np.ones_like(Q_max), Q_max))]).T
+                lower_envelope = plot_lower_envelope(lines, ax,
+                                                     show_segments=False)
+                aule = auc(lower_envelope[:,0], lower_envelope[:,1])
+                ax.set_title('{} AULE = {}'.format(method, aule))
+
+                fpr = roc[0]
+                tpr = roc[1]
+                thresholds = roc[2]
+                q_skew = thresholds*(1-tpr) + (1-thresholds)*fpr
+                ax.plot(thresholds, q_skew, 'go-')
 
     df = df.convert_objects(convert_numeric=True)
     print df
