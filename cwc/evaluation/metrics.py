@@ -1,5 +1,7 @@
 import numpy as np
 from sklearn.preprocessing import label_binarize
+from sklearn.metrics import roc_curve
+
 
 def cross_entropy(p,q):
     return -np.sum(p * np.log(np.clip(q, 1e-16, 1.0)), axis=1)
@@ -64,3 +66,10 @@ def calculate_mo_ce(clas_k, clas_u, confidence_k, confidence_u, labels_k):
     ce_cco = np.sum(ce_clas + ce_rej) / (np.alen(ce_clas) * 2.0)
 
     return ce_bas, ce_cco, ce_clas.mean(), ce_rej.mean(), ce_bas_rej.mean()
+
+
+def one_vs_rest_roc_curve(y,p, pos_label=0):
+    """Returns the roc curve of class 0 vs the rest of the classes"""
+    aux = np.zeros_like(y)
+    aux[y!=pos_label] = 1
+    return roc_curve(aux, p, pos_label=0)
