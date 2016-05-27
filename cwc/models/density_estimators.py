@@ -99,7 +99,10 @@ class MyMultivariateNormal(object):
         if(self.covariance_type == 'diag'):
             self.sigma = np.eye(np.alen(self.sigma))*self.sigma
 
-        self.size = len(mu)
+        if len(self.mu.shape) == 0:
+            self.size = 1
+        else:
+            self.size = self.mu.shape[0]
 
         self.det = np.linalg.det(self.sigma)
         # If sigma is singular
