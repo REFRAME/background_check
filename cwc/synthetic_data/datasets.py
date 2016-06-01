@@ -69,7 +69,7 @@ class MLData(object):
                     'vehicle':'vehicle',
                     'waveform-5000':'datasets-UCI waveform-5000',
                     'scene-classification':'scene-classification',
-                    'spam':'uci-20070111 spambase',
+                    #'spam':'uci-20070111 spambase',
                     'tic-tac':'uci-20070111 tic-tac-toe',
                     'MNIST':'MNIST (original)'}
 
@@ -115,6 +115,17 @@ class MLData(object):
             data = mldata.data
             target = mldata.target.toarray()
             target = target.transpose()[:,4]
+        elif name=='tic-tac':
+            n = np.alen(mldata.data)
+            data = np.hstack((mldata.data.reshape(n,1),
+                                     np.vstack([mldata[feature] for feature in
+                                                mldata.keys() if 'square' in
+                                                feature]).T,
+                                     mldata.target.reshape(n,1)))
+            for i, value in enumerate(np.unique(data)):
+                data[data==value] = i
+            data = data.astype(float)
+            target = mldata.Class.reshape(n,1)
         else:
             try:
                 data = mldata.data

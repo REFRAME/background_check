@@ -13,10 +13,12 @@ from sklearn.metrics import roc_curve
 from sklearn.cross_validation import StratifiedKFold
 from sklearn.ensemble import BaggingClassifier
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.svm import OneClassSVM
 from cwc.synthetic_data.datasets import MLData
 from cwc.synthetic_data import reject
 from cwc.visualization.cost_lines import plot_skew_lines
 from cwc.visualization.roc_analysis import plot_roc_curve
+from cwc.models.background_check import BackgroundCheck
 from diary import Diary
 
 import pandas as pd
@@ -45,6 +47,7 @@ def export_results(table):
     table.to_csv('final_table.csv')
 
     dict_format = dictionary_of_formats(table)
+    print table
     table.to_latex('final_table.tex', formatters=dict_format, escape=False)
 
 
@@ -83,14 +86,19 @@ columns=['Dataset', 'MC iteration', 'N-fold id', 'Actual class', 'Model',
 # Create a DataFrame to record all intermediate results
 df = pd.DataFrame(columns=columns)
 
-mc_iterations = 2
-n_folds = 2
+mc_iterations = 10
+n_folds = 10
+
+gammas = {"diabetes":0.00005, "ecoli":0.1, "glass":0.005,
+          "heart-statlog":0.0001, "ionosphere":0.00005, "iris":0.0005,
+          "letter":0.000005, "mfeat-karhunen":0.0001,
+          "mfeat-morphological":0.0000001, "mfeat-zernike":0.000001,
+          "optdigits":0.00005, "pendigits":0.000001, "sonar":0.001,
+          "vehicle":0.00005, "waveform-5000":0.001}
+
 for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
     print('Dataset number {}'.format(i))
-    if name == 'MNIST' or name == 'scene-classification':
-        # TODO get a stratified portion of the validation set [0:60000]
-        #dataset._data = dataset._data[-10000:]
-        #dAtaset._target = dataset._target[-10000:]
+    if name != 'tic-tac':
         continue
 
     mldata.sumarize_datasets(name)
@@ -125,6 +133,10 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
                     model_gmm = GMM(n_components=1, covariance_type='diag')
                     model_gmm.fit(tr_class)
 
+                    sv = OneClassSVM(nu=0.1, gamma=0.5)
+                    bc = BackgroundCheck(estimator=sv)
+                    bc.fit(tr_class)
+                    svm_scores = bc.predict_proba(x_test_cleaned)[:, 1]
                     # Generate artificial data
                     new_data = model_gmm.sample(np.alen(tr_class))
 
@@ -182,6 +194,8 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
                     auc_our_bag = roc_auc_score(t_labels, our_probs)
                     # Scores for our Bag of trees (trained on our data)
                     auc_our_comb = roc_auc_score(t_labels, our_comb_scores)
+                    # Scores for the Background Check with SVm
+                    auc_svm = roc_auc_score(t_labels, svm_scores)
 
                     # Create a new DataFrame to append to the original one
                     dfaux = pd.DataFrame([[name, mc, test_fold, actual_class,
@@ -193,20 +207,25 @@ for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
                                         [name, mc, test_fold, actual_class,
                                          'Our Bagg', auc_our_bag, prior],
                                         [name, mc, test_fold, actual_class,
-                                         'Our Combined', auc_our_comb, prior]],
-                                        columns=columns)
+                                         'Our Combined', auc_our_comb, prior],
+                                        [name, mc, test_fold, actual_class,
+                                         'SVM_BC', auc_svm, prior]],
+                                         columns=columns)
                     df = df.append(dfaux, ignore_index=True)
 
-                    generate_and_save_plots(t_labels, scores, diary, name, mc, test_fold,
-                                            actual_class, 'P(X$|$A)')
-                    generate_and_save_plots(t_labels, probs, diary, name, mc, test_fold,
-                                            actual_class, 'P(T$|$X)')
-                    generate_and_save_plots(t_labels, com_scores, diary, name, mc, test_fold,
-                                            actual_class, 'Combined')
-                    generate_and_save_plots(t_labels, our_probs, diary, name, mc, test_fold,
-                                            actual_class, 'Our_Bagg')
-                    generate_and_save_plots(t_labels, our_comb_scores, diary, name, mc, test_fold,
-                                            actual_class, 'Our_Combined')
+                    # generate_and_save_plots(t_labels, scores, diary, name, mc, test_fold,
+                    #                         actual_class, 'P(X$|$A)')
+                    # generate_and_save_plots(t_labels, probs, diary, name, mc, test_fold,
+                    #                         actual_class, 'P(T$|$X)')
+                    # generate_and_save_plots(t_labels, com_scores, diary, name, mc, test_fold,
+                    #                         actual_class, 'Combined')
+                    # generate_and_save_plots(t_labels, our_probs, diary, name, mc, test_fold,
+                    #                         actual_class, 'Our_Bagg')
+                    # generate_and_save_plots(t_labels, our_comb_scores, diary, name, mc, test_fold,
+                    #                         actual_class, 'Our_Combined')
+                    # generate_and_save_plots(t_labels, svm_scores, diary,
+                    #                         name, mc, test_fold,
+                    #                         actual_class, 'SVM_BC')
 
 
 
