@@ -2,6 +2,7 @@ from sklearn import svm
 from ..synthetic_data import reject
 import numpy as np
 from scipy.stats import multivariate_normal
+from sklearn.mixture import GMM
 
 class DensityEstimators(object):
     def __init__(self):
@@ -64,6 +65,10 @@ class DensityEstimators(object):
     def predict_confidence(self,X):
         scores = self.predict_proba(X)
         return self.model_agg.predict_proba(scores)[:,1]
+
+class MyGMM(GMM):
+    def score(self, X):
+        return np.exp(super(MyGMM, self).score(X))
 
 class MyMultivariateNormal(object):
     def __init__(self, mean=None, cov=None, min_covar=1e-10,

@@ -58,13 +58,24 @@ class BackgroundCheck(object):
             probabilities for background (column 0) and foreground (column 1).
 
         """
-        p_x_f = expit(self.score(X) + self._delta)
+        q, p_x_and_b = self.compute_q_p_x_and_b(X)
         posteriors = np.zeros((np.alen(X), 2))
-        q = np.clip(p_x_f / self._max_dens, 0.0, 1.0)
-        p_x_and_b = q * self._mu + (1.0 - q) * self._m
         posteriors[:, 0] = p_x_and_b / (p_x_and_b + q)
         posteriors[:, 1] = 1.0 - posteriors[:, 0]
         return posteriors
+
+    def compute_q_p_x_and_b(self, X):
+        """
+
+        Returns:
+            q and not q
+        """
+        # TODO maybe apply expit only on the necessary cases
+        p_x_and_f = expit(self.score(X) + self._delta)
+        # TODO look for other methods to clip the probabilities?
+        q = np.clip(p_x_and_f / self._max_dens, 0.0, 1.0)
+        p_x_and_b = q * self._mu + (1.0 - q) * self._m
+        return q, p_x_and_b
 
     def score(self, X):
         """Gets scores for the objects of X using different functions that

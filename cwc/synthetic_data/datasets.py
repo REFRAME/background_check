@@ -69,6 +69,8 @@ class MLData(object):
                     'vehicle':'vehicle',
                     'waveform-5000':'datasets-UCI waveform-5000',
                     'scene-classification':'scene-classification',
+                    'spam':'uci-20070111 spambase',
+                    'tic-tac':'uci-20070111 tic-tac-toe',
                     'MNIST':'MNIST (original)'}
 
     def __init__(self, data_home='./datasets/'):
