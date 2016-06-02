@@ -146,6 +146,10 @@ class MyMultivariateNormal(object):
     def sample(self, n):
         return np.random.multivariate_normal(self.mu, self.sigma, n)
 
+    @property
+    def maximum(self):
+        return self.score(self.mu.reshape(-1,1))
+
 
 class MultivariateNormal(object):
     def __init__(self, mean=None, cov=None, allow_singular=True,
