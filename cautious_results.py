@@ -33,7 +33,7 @@ def get_weka_instances(data, name):
 
 def weka_tree():
     tree = FilteredClassifier()
-    cmdline = 'weka.classifiers.trees.J48 -U -M 2 -A'
+    cmdline = 'weka.classifiers.trees.J48 -U -A'
     tree.classifier = from_commandline(cmdline,
                                        classname="weka.classifiers.Classifier")
     flter = Filter(
@@ -59,8 +59,7 @@ def predict_proba(tree, X, y):
     return posteriors
 
 
-def accuracy_abstention_curve(y, posteriors, ks=np.array([0.5, 0.5])):
-    n_ws = 11
+def accuracy_abstention_curve(y, posteriors, ks=np.array([0.5, 0.5]), n_ws=11):
     ws = np.linspace(0.0, 1.0, n_ws)
     accuracies = np.zeros(n_ws)
     abstentions = np.zeros(n_ws)
@@ -82,12 +81,14 @@ if __name__ == '__main__':
     np.random.seed(42)
     mc_iterations = 20
     n_folds = 5
+    n_ws = 11
     try:
         jvm.start()
         for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
             if name != 'tic-tac':
                 continue
-
+            accuracies = np.zeros((mc_iterations * n_folds, n_ws))
+            abstentions = np.zeros((mc_iterations * n_folds, n_ws))
             mldata.sumarize_datasets(name)
             for mc in np.arange(mc_iterations):
                 skf = StratifiedKFold(dataset.target, n_folds=n_folds,
@@ -101,16 +102,21 @@ if __name__ == '__main__':
                     fit(tree, x_train, y_train)
                     posteriors = predict_proba(tree, x_test, y_test)
 
-                    abstentions, accuracies = accuracy_abstention_curve(
-                        y_test, posteriors)
+                    abs, accs = accuracy_abstention_curve(
+                        y_test, posteriors, n_ws=n_ws)
 
-                    # roc = roc_curve(y_test, posteriors, pos_label=0)
-                    fig = plt.figure()
-                    ax = fig.add_subplot(111)
-                    ax.plot(abstentions, accuracies, '.-')
-                    # ax.set_xlim([-0.01, 1.01])
-                    # ax.set_ylim([-0.01, 1.01])
-                    plt.show()
+                    accuracies[mc * n_folds + test_fold] = accs
+                    abstentions[mc * n_folds + test_fold] = abs
+
+            # roc = roc_curve(y_test, posteriors, pos_label=0)
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            ax.plot(abstentions.mean(axis=0), accuracies.mean(axis=0), '.-')
+            ax.set_xlabel('Abstention')
+            ax.set_ylabel('Accuracy')
+            # ax.set_xlim([-0.01, 1.01])
+            # ax.set_ylim([-0.01, 1.01])
+            plt.show()
     except Exception, e:
         print(traceback.format_exc())
     finally:
