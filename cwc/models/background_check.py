@@ -47,7 +47,7 @@ class BackgroundCheck(object):
         dens = expit(dens + self._delta)
         self._max_dens = dens.max()
 
-    def predict_proba(self, X):
+    def predict_proba(self, X, mu=None, m=None):
         """Performs background check on the data in X.
 
         Args:
@@ -58,23 +58,31 @@ class BackgroundCheck(object):
             probabilities for background (column 0) and foreground (column 1).
 
         """
-        q, p_x_and_b = self.compute_q_p_x_and_b(X)
+        if mu is None:
+            mu = self._mu
+        if m is None:
+            m = self._m
+        q, p_x_and_b = self.compute_q_p_x_and_b(X, mu=mu, m=m)
         posteriors = np.zeros((np.alen(X), 2))
         posteriors[:, 0] = p_x_and_b / (p_x_and_b + q)
         posteriors[:, 1] = 1.0 - posteriors[:, 0]
         return posteriors
 
-    def compute_q_p_x_and_b(self, X):
+    def compute_q_p_x_and_b(self, X, mu=None, m=None):
         """
 
         Returns:
             q and not q
         """
+        if mu is None:
+            mu = self._mu
+        if m is None:
+            m = self._m
         # TODO maybe apply expit only on the necessary cases
         p_x_and_f = expit(self.score(X) + self._delta)
         # TODO look for other methods to clip the probabilities?
         q = np.clip(p_x_and_f / self._max_dens, 0.0, 1.0)
-        p_x_and_b = q * self._mu + (1.0 - q) * self._m
+        p_x_and_b = q * mu + (1.0 - q) * m
         return q, p_x_and_b
 
     def score(self, X):
