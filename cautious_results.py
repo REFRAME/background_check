@@ -14,6 +14,7 @@ from sklearn.cross_validation import StratifiedKFold
 import matplotlib.pyplot as plt
 
 from cwc.synthetic_data.datasets import MLData
+from cwc.models.discriminative_models import MyDecisionTreeClassifier
 
 
 def separate_sets(x, y, test_fold_id, test_folds):
@@ -83,7 +84,7 @@ if __name__ == '__main__':
     n_folds = 5
     n_ws = 11
     try:
-        jvm.start()
+        #jvm.start()
         for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
             if name != 'tic-tac':
                 continue
@@ -98,9 +99,13 @@ if __name__ == '__main__':
                     x_train, y_train, x_test, y_test = separate_sets(
                             dataset.data, dataset.target, test_fold, test_folds)
 
-                    tree = weka_tree()
-                    fit(tree, x_train, y_train)
-                    posteriors = predict_proba(tree, x_test, y_test)
+
+                    #tree = weka_tree()
+                    #fit(tree, x_train, y_train)
+                    #posteriors = predict_proba(tree, x_test, y_test)
+                    tree = MyDecisionTreeClassifier()
+                    tree.fit(x_train, y_train)
+                    posteriors = tree.predict_proba(x_test)
 
                     abs, accs = accuracy_abstention_curve(
                         y_test, posteriors, n_ws=n_ws)
@@ -119,6 +124,6 @@ if __name__ == '__main__':
             plt.show()
     except Exception, e:
         print(traceback.format_exc())
-    finally:
-        jvm.stop()
+    #finally:
+        #jvm.stop()
 
