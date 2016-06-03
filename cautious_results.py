@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 plt.rcParams['figure.autolayout'] = True
 
 from cwc.synthetic_data.datasets import MLData
+from cwc.synthetic_data.datasets import Data
 from cwc.models.discriminative_models import MyDecisionTreeClassifier
 from cwc.models.background_check import BackgroundCheck
 
@@ -60,15 +61,14 @@ def accuracy_abstention_curve_bc(y, posteriors, x_train, x_test, n_mus=11):
 
 
 if __name__ == '__main__':
-    mldata = MLData()
+    dataset_names = ['tic-tac', 'spambase', 'diabetes']
+    mldata = Data(dataset_names=dataset_names)
     plt.ion()
     np.random.seed(42)
     mc_iterations = 20
     n_folds = 5
     n_ws = 100
     for i, (name, dataset) in enumerate(mldata.datasets.iteritems()):
-        if name != 'tic-tac':
-            continue
         accuracies_ferri = np.zeros((mc_iterations * n_folds, n_ws))
         abstentions_ferri = np.zeros((mc_iterations * n_folds, n_ws))
         accuracies_bc = np.zeros((mc_iterations * n_folds, n_ws))
@@ -115,7 +115,7 @@ if __name__ == '__main__':
         mean_eff_bc = mean_eff_bc[np.logical_not(
             np.isnan(mean_eff_bc))].mean()
 
-        fig = plt.figure("Background Check")
+        fig = plt.figure("Background Check {}".format(name))
         fig.clf()
         ax = fig.add_subplot(111)
         ax.plot(mean_abst_ferri, mean_acc_ferri, 'b.-',
@@ -125,6 +125,7 @@ if __name__ == '__main__':
         ax.set_xlabel('Abstention')
         ax.set_ylabel('Accuracy')
         ax.legend(loc='lower right')
+        ax.set_title(name)
         # ax.set_xlim([-0.01, 1.01])
         # ax.set_ylim([-0.01, 1.01])
         #plt.show()

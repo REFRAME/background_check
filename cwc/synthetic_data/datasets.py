@@ -1,3 +1,4 @@
+import warnings
 from sklearn.datasets import fetch_mldata
 import matplotlib.pyplot as plt
 from math import ceil
@@ -51,6 +52,14 @@ class Dataset(object):
     def counts(self):
         return self._counts
 
+    def print_summary(self):
+        print('Name = {}'.format(self.name))
+        print('Data shape = {}'.format(self.data.shape))
+        print('Target shape = {}'.format(self.target.shape))
+        print('Target classes = {}'.format(self.classes))
+        print('Target labels = {}'.format(self.names))
+        print('\n')
+
 
 class MLData(object):
     mldata_names = {'diabetes':'diabetes',
@@ -73,16 +82,20 @@ class MLData(object):
                     'tic-tac':'uci-20070111 tic-tac-toe',
                     'MNIST':'MNIST (original)'}
 
-    def __init__(self, data_home='./datasets/'):
+    def __init__(self, data_home='./datasets/', load_all=False):
+        warnings.simplefilter('always', DeprecationWarning)
+        warnings.warn(('This Class is going to be deprecated in a future '
+                       'version, please use cwc.synthetic_data.Data instead.'),
+                      DeprecationWarning)
         self.data_home = data_home
         self.datasets = {}
 
-        for key in MLData.mldata_names.keys():
-            self.datasets[key] = self.get_dataset(key)
+        if load_all:
+            for key in MLData.mldata_names.keys():
+                self.datasets[key] = self.get_dataset(key)
 
     def get_dataset(self, name):
-        data_home='./datasets/'
-        mldata = fetch_mldata(MLData.mldata_names[name], data_home=data_home)
+        mldata = fetch_mldata(MLData.mldata_names[name], data_home=self.data_home)
 
         if name=='ecoli':
             data = mldata.target.T
@@ -142,18 +155,121 @@ class MLData(object):
     def sumarize_datasets(self, name=None):
         if name is not None:
             dataset = self.datasets[name]
-            print('Name = {}'.format(name))
-            print('Data shape = {}'.format(dataset.data.shape))
-            print('Target shape = {}'.format(dataset.target.shape))
-            print('Target classes = {}'.format(dataset.classes))
-            print('Target labels = {}'.format(dataset.names))
-            print('\n')
+            dataset.print_summary()
         else:
             for name, dataset in self.datasets.iteritems():
-                print('Name = {}'.format(name))
-                print('Data shape = {}'.format(dataset.data.shape))
-                print('Target shape = {}'.format(dataset.target.shape))
-                print('Target classes = {}'.format(dataset.classes))
-                print('Target labels = {}'.format(dataset.names))
-                print('\n')
+                dataset.print_summary()
 
+class Data(object):
+    mldata_names = {'diabetes':'diabetes',
+                    'ecoli':'uci-20070111 ecoli',
+                    'glass':'glass',
+                    'heart-statlog':'datasets-UCI heart-statlog',
+                    'ionosphere':'ionosphere',
+                    'iris':'iris',
+                    'letter':'letter',
+                    'mfeat-karhunen':'uci-20070111 mfeat-karhunen',
+                    'mfeat-morphological':'uci-20070111 mfeat-morphological',
+                    'mfeat-zernike':'uci-20070111 mfeat-zernike',
+                    'optdigits':'uci-20070111 optdigits',
+                    'pendigits':'uci-20070111 pendigits',
+                    'sonar':'sonar',
+                    'vehicle':'vehicle',
+                    'waveform-5000':'datasets-UCI waveform-5000',
+                    'scene-classification':'scene-classification',
+                    #'spam':'uci-20070111 spambase',
+                    'tic-tac':'uci-20070111 tic-tac-toe',
+                    'MNIST':'MNIST (original)'}
+
+    def __init__(self, data_home='./datasets/', dataset_names=None, load_all=False):
+        self.data_home = data_home
+        self.datasets = {}
+
+        if load_all:
+            dataset_names = Data.mldata_names.keys()
+            self.load_datasets_by_name(dataset_names)
+        elif dataset_names is not None:
+            self.load_datasets_by_name(dataset_names)
+
+
+    def load_datasets_by_name(self, names):
+        for name in names:
+            self.datasets[name] = self.get_dataset_by_name(name)
+
+
+    def get_dataset_by_name(self, name):
+        if name in Data.mldata_names.keys():
+            return self.get_mldata_dataset(name)
+        if name == 'spambase':
+            data = np.load('./datasets/uci_spambase.npy')
+            target = data[:,-1]
+            data = data[:,0:-1]
+        return Dataset(name, data, target)
+
+
+    def get_mldata_dataset(self, name):
+        mldata = fetch_mldata(Data.mldata_names[name], data_home=self.data_home)
+
+        if name=='ecoli':
+            data = mldata.target.T
+            target = mldata.data
+        elif name=='diabetes':
+            data = mldata.data
+            target = mldata.target
+        elif name=='optdigits':
+            data = mldata.data[:,:-1]
+            target = mldata.data[:,-1]
+        elif name=='pendigits':
+            data = mldata.data[:,:-1]
+            target = mldata.data[:,-1]
+        elif name=='waveform-5000':
+            data = mldata.target.T
+            target = mldata.data
+        elif name=='heart-statlog':
+            data = np.hstack([mldata['target'].T, mldata.data, mldata['int2'].T])
+            target = mldata['class']
+        elif name=='mfeat-karhunen':
+            data = mldata.target.T
+            target = mldata.data
+        elif name=='mfeat-zernike':
+            data = mldata.target.T
+            target = mldata.data
+        elif name=='mfeat-morphological':
+            data = mldata.target.T
+            target = mldata.data
+        elif name=='scene-classification':
+            data = mldata.data
+            target = mldata.target.toarray()
+            target = target.transpose()[:,4]
+        elif name=='tic-tac':
+            n = np.alen(mldata.data)
+            data = np.hstack((mldata.data.reshape(n,1),
+                                     np.vstack([mldata[feature] for feature in
+                                                mldata.keys() if 'square' in
+                                                feature]).T,
+                                     mldata.target.reshape(n,1)))
+            for i, value in enumerate(np.unique(data)):
+                data[data==value] = i
+            data = data.astype(float)
+            target = mldata.Class.reshape(n,1)
+        else:
+            try:
+                data = mldata.data
+                target = mldata.target
+            except KeyError:
+                print "KeyError: {}".format(name)
+                raise
+            except AttributeError:
+                print "AttributeError: {}".format(name)
+                raise
+
+        return Dataset(name, data, target)
+
+
+    def sumarize_datasets(self, name=None):
+        if name is not None:
+            dataset = self.datasets[name]
+            dataset.print_summary()
+        else:
+            for name, dataset in self.datasets.iteritems():
+                dataset.print_summary()
