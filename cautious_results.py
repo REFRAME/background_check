@@ -31,6 +31,42 @@ def get_abstention_accuracy(y, predictions):
     return abstention, accuracy
 
 
+def accuracy_abstention_curves(y, posteriors, x_train, x_test, n_ws=11):
+    n_classes = np.alen(np.unique(y))
+    ks = np.ones(n_classes) / n_classes
+    ws = np.linspace(0.0, 1.01, n_ws)
+    absts_ferri = np.zeros(n_ws)
+    accs_ferri = np.zeros(n_ws)
+
+    a = (1/(n_classes + 1) - 0.5) / ((1/n_classes) - 1)
+    b = 0.5 - a
+
+    bc = BackgroundCheck()
+    bc.fit(x_train)
+    absts_bc = np.zeros(n_ws)
+    accs_bc = np.zeros(n_ws)
+
+    for index, w in enumerate(ws):
+        taus = (1.0 - ks) * w + ks
+        predictions = np.argmax(posteriors / taus, axis=1)
+        predictions[posteriors[np.arange(np.alen(predictions)),
+                               predictions] < taus[predictions]] = n_classes
+        abst_ferri, acc_ferri = get_abstention_accuracy(y, predictions)
+        absts_ferri[index] = abst_ferri
+        accs_ferri[index] = acc_ferri
+
+        p_b = taus[0]*a + b
+        mu = p_b/(1 - p_b)
+        bc_posteriors = bc.predict_proba(x_test, mu=mu, m=0.0)
+        p = np.hstack((posteriors*bc_posteriors[:, 1].reshape(-1, 1),
+                       bc_posteriors[:, 0].reshape(-1, 1)))
+        predictions = np.argmax(p, axis=1)
+        abst_bc, acc_bc = get_abstention_accuracy(y, predictions)
+        absts_bc[index] = abst_bc
+        accs_bc[index] = acc_bc
+    return absts_ferri, accs_ferri, absts_bc, accs_bc
+
+
 def accuracy_abstention_curve_ferri(y, posteriors, n_ws=11):
     n_classes = np.alen(np.unique(y))
     ks = np.ones(n_classes) / n_classes
@@ -82,7 +118,7 @@ if __name__ == '__main__':
     np.random.seed(42)
     mc_iterations = 20
     n_folds = 5
-    n_ws = 100
+    n_ws = 1000
     for i, (name, dataset) in enumerate(data.datasets.iteritems()):
         accuracies_ferri = np.zeros((mc_iterations * n_folds, n_ws))
         abstentions_ferri = np.zeros((mc_iterations * n_folds, n_ws))
@@ -102,20 +138,24 @@ if __name__ == '__main__':
                 tree.fit(x_train, y_train)
                 posteriors = tree.predict_proba(x_test)
 
-                abst, accs = accuracy_abstention_curve_ferri(y_test,
-                                                             posteriors,
-                                                             n_ws=n_ws)
+                abst, accs, abst_bc, accs_bc = accuracy_abstention_curves(y_test,
+                                                            posteriors, x_train,
+                                                            x_test, n_ws=n_ws)
 
                 accuracies_ferri[mc * n_folds + test_fold] = accs
                 abstentions_ferri[mc * n_folds + test_fold] = abst
 
-                abst_bc, accs_bc = accuracy_abstention_curve_bc(y_test,
-                                                          posteriors,
-                                                          x_train, x_test,
-                                                          n_mus=n_ws)
-
                 accuracies_bc[mc * n_folds + test_fold] = accs_bc
                 abstentions_bc[mc * n_folds + test_fold] = abst_bc
+
+                # abst, accs = accuracy_abstention_curve_ferri(y_test,
+                #                                              posteriors,
+                #                                              n_ws=n_ws)
+                #
+                # abst_bc, accs_bc = accuracy_abstention_curve_bc(y_test,
+                #                                           posteriors,
+                #                                           x_train, x_test,
+                #                                           n_ws=n_ws)
 
         # roc = roc_curve(y_test, posteriors, pos_label=0)
         mean_abst_ferri, mean_acc_ferri = prune_curve(
