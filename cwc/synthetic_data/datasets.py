@@ -58,7 +58,6 @@ class Dataset(object):
         print('Target shape = {}'.format(self.target.shape))
         print('Target classes = {}'.format(self.classes))
         print('Target labels = {}'.format(self.names))
-        print('\n')
 
 
 class MLData(object):
@@ -304,6 +303,13 @@ class Data(object):
             data = np.hstack([
                     self.nominal_to_float(mldata[f_name].reshape(-1,1))
                         for f_name in feature_names])
+        elif name=='cleveland':
+            target = mldata.int2.reshape(-1,1)
+            data = np.hstack((mldata.target.T, mldata.data))
+            missing = np.logical_or(np.isnan(data),
+                                    data == -2147483648).any(axis=1)
+            data = data[~missing]
+            target = target[~missing]
         else:
             try:
                 data = mldata.data
@@ -364,17 +370,23 @@ def test(dataset_names):
         y_train = y[test_folds != test_fold_id]
         return [x_train, y_train, x_test, y_test]
 
+    n_folds = 2
     for name, dataset in data.datasets.iteritems():
-        skf = StratifiedKFold(dataset.target, n_folds=2, shuffle=True)
-        test_folds = skf.test_folds
-        x_train, y_train, x_test, y_test = separate_sets(
-                dataset.data, dataset.target, 0, test_folds)
-
-        svc = SVC(C=1.0, kernel='rbf', degree=1, tol=0.01)
-        svc.fit(x_train, y_train)
-        prediction = svc.predict(x_test)
         dataset.print_summary()
-        print("Accuracy = {:.2f}%".format(100*np.mean((prediction == y_test))))
+        skf = StratifiedKFold(dataset.target, n_folds=n_folds, shuffle=True)
+        test_folds = skf.test_folds
+        accuracies = np.zeros(n_folds)
+        for test_fold in np.arange(n_folds):
+            x_train, y_train, x_test, y_test = separate_sets(
+                    dataset.data, dataset.target, test_fold, test_folds)
+
+            svc = SVC(C=1.0, kernel='rbf', degree=1, tol=0.01)
+            svc.fit(x_train, y_train)
+            prediction = svc.predict(x_test)
+            accuracies[test_fold] = 100*np.mean((prediction == y_test))
+        print("Accuracy = {0:.2f}% +- {1:.2f}".format(accuracies.mean(),
+                                                      accuracies.std()))
+        print('')
 
 if __name__=='__main__':
     test(['autos', 'car', 'cleveland'])
