@@ -184,20 +184,23 @@ class Data(object):
                     'car':'uci-20070111 car',
                     'cleveland':'uci-20070111 cleveland',
                     'dermatology':'uci-20070111 dermatology',
-                    # Need preprocessing :
                     'flare':'uci-20070111 solar-flare_2',
+                    'page-blocks':'uci-20070111 page-blocks',
+                    'segment':'datasets-UCI segment',
+                    'shuttle':'shuttle',
+                    'vowel':'uci-20070111 vowel',
+                    'zoo':'uci-20070111 zoo',
+                    # Need preprocessing :
+                    'auslan':'',
+                    # Needs to be generated
                     'led7digit':'',
-                    'lymphography':'',
-                    'nursery':'',
-                    'page-blocks':'',
-                    'penbased':'',
-                    'satimage':'',
-                    'segment':'',
-                    'shuttle':'',
-                    'vowel':'',
                     'yeast':'',
-                    'zoo':'',
-                    'auslan':''}
+                    # Needs permission from ml-repository@ics.uci.edu
+                    'lymphography':'',
+                    # HTTP Error 500 in mldata.org
+                    'satimage':'satimage',
+                    'nursery':'uci-20070111 nursery'
+                    }
 
     def __init__(self, data_home='./datasets/', dataset_names=None, load_all=False):
         self.data_home = data_home
@@ -327,7 +330,39 @@ class Data(object):
 
             target = np.hstack((target, mldata.target))
             data = np.vstack((data, mldata['int0'].T))
+        elif name=='nursery':
+            raise Exception('Not currently available')
+        elif name=='page-blocks':
+            data = np.hstack((mldata['target'].T, mldata['data'],
+                              mldata['int2'].T))
+            target = data[:,-1]
+            data = data[:,:-1]
+        elif name=='satimage':
+            raise Exception('Not currently available')
+        elif name=='segment':
+            target = mldata['class'].reshape(-1,1)
+            data = np.hstack((mldata['int2'].T, mldata['data'],
+                              mldata['target'].T, mldata['double3'].T))
+        elif name=='vowel':
+            target = mldata['Class'].T
+            data = np.hstack((
+                        self.nominal_to_float(mldata['target'].reshape(-1,1)),
+                        mldata['double0'].T,
+                        self.nominal_to_float(mldata['data'].reshape(-1,1)),
+                        self.nominal_to_float(mldata['Sex'].T.reshape(-1,1))))
+        elif name=='zoo':
+            target = mldata['type'].reshape(-1,1)
+            feature_names = ['aquatic', 'domestic', 'eggs', 'backbone',
+                             'feathers', 'data', 'milk', 'tail',
+                             'airborne', 'toothed', 'catsize', 'venomous',
+                             'fins', 'predator', 'breathes']
+            data = np.hstack([
+                    self.nominal_to_float(mldata[f_name].reshape(-1,1))
+                        for f_name in feature_names])
+            data = np.hstack((data, mldata['int0'].T))
         else:
+            #from IPython import embed
+            #embed()
             try:
                 data = mldata.data
                 target = mldata.target
@@ -406,4 +441,4 @@ def test(dataset_names):
         print('')
 
 if __name__=='__main__':
-    test(['flare'])
+    test(['zoo'])
