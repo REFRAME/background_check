@@ -182,10 +182,10 @@ class Data(object):
                     'MNIST':'MNIST (original)',
                     'autos':'uci-20070111 autos',
                     'car':'uci-20070111 car',
-                    # Need preprocessing :
                     'cleveland':'uci-20070111 cleveland',
                     'dermatology':'uci-20070111 dermatology',
-                    'flare':'',
+                    # Need preprocessing :
+                    'flare':'uci-20070111 solar-flare_2',
                     'led7digit':'',
                     'lymphography':'',
                     'nursery':'',
@@ -317,6 +317,16 @@ class Data(object):
                                     data == -2147483648).any(axis=1)
             data = data[~missing]
             target = target[~missing]
+        elif name=='flare':
+            target = mldata.target
+            data = mldata['int0'].T
+
+            # TODO this dataset is divided in two files, see more elegant way
+            # to add it
+            mldata = fetch_mldata('uci-20070111 solar-flare_1')
+
+            target = np.hstack((target, mldata.target))
+            data = np.vstack((data, mldata['int0'].T))
         else:
             try:
                 data = mldata.data
@@ -396,4 +406,4 @@ def test(dataset_names):
         print('')
 
 if __name__=='__main__':
-    test(['dermatology'])
+    test(['flare'])
