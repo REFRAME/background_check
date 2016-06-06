@@ -152,6 +152,7 @@ class MLData(object):
 
         return Dataset(name, data, target)
 
+
     def sumarize_datasets(self, name=None):
         if name is not None:
             dataset = self.datasets[name]
@@ -179,7 +180,25 @@ class Data(object):
                     'scene-classification':'scene-classification',
                     #'spam':'uci-20070111 spambase',
                     'tic-tac':'uci-20070111 tic-tac-toe',
-                    'MNIST':'MNIST (original)'}
+                    'MNIST':'MNIST (original)',
+                    # Need preprocessing :
+                    'autos':'uci-20070111 autos',
+                    'car':'',
+                    'cleveland':'',
+                    'dermatology':'',
+                    'flare':'',
+                    'led7digit':'',
+                    'lymphography':'',
+                    'nursery':'',
+                    'page-blocks':'',
+                    'penbased':'',
+                    'satimage':'',
+                    'segment':'',
+                    'shuttle':'',
+                    'vowel':'',
+                    'yeast':'',
+                    'zoo':'',
+                    'auslan':''}
 
     def __init__(self, data_home='./datasets/', dataset_names=None, load_all=False):
         self.data_home = data_home
@@ -200,10 +219,12 @@ class Data(object):
     def get_dataset_by_name(self, name):
         if name in Data.mldata_names.keys():
             return self.get_mldata_dataset(name)
-        if name == 'spambase':
+        elif name == 'spambase':
             data = np.load('./datasets/uci_spambase.npy')
             target = data[:,-1]
             data = data[:,0:-1]
+        else:
+            raise Exception('Dataset {} not available'.format(name))
         return Dataset(name, data, target)
 
 
@@ -252,6 +273,30 @@ class Data(object):
                 data[data==value] = i
             data = data.astype(float)
             target = mldata.Class.reshape(n,1)
+        elif name=='autos':
+            target = mldata.int5[5,:].reshape(-1,1)
+            data = np.hstack((
+                      mldata['target'].reshape(-1,1),
+                      self.nominal_to_float(mldata['data'].reshape(-1,1)),
+                      self.nominal_to_float(mldata['fuel-type'].reshape(-1,1)),
+                      self.nominal_to_float(mldata['aspiration'].reshape(-1,1)),
+                      self.nominal_to_float(mldata['num-of-doors'].reshape(-1,1)),
+                      self.nominal_to_float(mldata['body-style'].reshape(-1,1)),
+                      self.nominal_to_float(mldata['drive-wheels'].reshape(-1,1)),
+                      self.nominal_to_float(mldata['engine-location'].reshape(-1,1)),
+                      mldata['double1'].T.reshape(-1,4),
+                      mldata['int2'].reshape(-1,1),
+                      self.nominal_to_float(mldata['engine-type'].reshape(-1,1)),
+                      self.nominal_to_float(mldata['num-of-cylinders'].reshape(-1,1)),
+                      mldata['int3'].reshape(-1,1),
+                      self.nominal_to_float(mldata['fuel-system'].reshape(-1,1)),
+                      mldata['double4'].T.reshape(-1,3),
+                      mldata['int5'][:-1,:].T.reshape(-1,5)
+                              ))
+            missing = np.logical_or(np.isnan(data),
+                                    data == -2147483648).any(axis=1)
+            data = data[~missing]
+            target = target[~missing]
         else:
             try:
                 data = mldata.data
@@ -266,6 +311,31 @@ class Data(object):
         return Dataset(name, data, target)
 
 
+    def nominal_to_float(self, x):
+        """converts an array of nominal features into floats
+
+        Missing values are marked with the string 'nan' and are converted to
+        numpy.nan
+
+        Args:
+            x (array-like, shape = [n_samples, 1]): feature strings.
+
+        Returns:
+            (array-like, shape = [n_samples, 1]): floats.
+        """
+        new_x = np.empty_like(x, dtype=float)
+        x = np.squeeze(x)
+        names = np.unique(x)
+        substract = 0
+        for i, name in enumerate(names):
+            if name == 'nan':
+                new_x[x==name] = np.nan
+                substract = 1
+            else:
+                new_x[x==name] = i - substract
+        return new_x
+
+
     def sumarize_datasets(self, name=None):
         if name is not None:
             dataset = self.datasets[name]
@@ -273,3 +343,31 @@ class Data(object):
         else:
             for name, dataset in self.datasets.iteritems():
                 dataset.print_summary()
+
+def test(dataset_names):
+    from sklearn.svm import SVC
+    from sklearn.cross_validation import StratifiedKFold
+    data = Data(dataset_names=dataset_names)
+
+    def separate_sets(x, y, test_fold_id, test_folds):
+        x_test = x[test_folds == test_fold_id, :]
+        y_test = y[test_folds == test_fold_id]
+
+        x_train = x[test_folds != test_fold_id, :]
+        y_train = y[test_folds != test_fold_id]
+        return [x_train, y_train, x_test, y_test]
+
+    for name, dataset in data.datasets.iteritems():
+        skf = StratifiedKFold(dataset.target, n_folds=2, shuffle=True)
+        test_folds = skf.test_folds
+        x_train, y_train, x_test, y_test = separate_sets(
+                dataset.data, dataset.target, 0, test_folds)
+
+        svc = SVC(C=1.0, kernel='rbf', degree=1, tol=0.01)
+        svc.fit(x_train, y_train)
+        prediction = svc.predict(x_test)
+        dataset.print_summary()
+        print("Accuracy = {:.2f}%".format(100*np.mean((prediction == y_test))))
+
+if __name__=='__main__':
+    test(['autos'])
