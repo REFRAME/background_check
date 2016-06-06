@@ -178,13 +178,13 @@ class Data(object):
                     'vehicle':'vehicle',
                     'waveform-5000':'datasets-UCI waveform-5000',
                     'scene-classification':'scene-classification',
-                    #'spam':'uci-20070111 spambase',
+                    #'spam':'uci-20070111 spambase', # not working
                     'tic-tac':'uci-20070111 tic-tac-toe',
                     'MNIST':'MNIST (original)',
-                    # Need preprocessing :
                     'autos':'uci-20070111 autos',
-                    'car':'',
-                    'cleveland':'',
+                    'car':'uci-20070111 car',
+                    # Need preprocessing :
+                    'cleveland':'uci-20070111 cleveland',
                     'dermatology':'',
                     'flare':'',
                     'led7digit':'',
@@ -297,6 +297,13 @@ class Data(object):
                                     data == -2147483648).any(axis=1)
             data = data[~missing]
             target = target[~missing]
+        elif name=='car':
+            target = mldata['class']
+            feature_names = ['data', 'target', 'doors', 'persons', 'lug_boot',
+                             'safety']
+            data = np.hstack([
+                    self.nominal_to_float(mldata[f_name].reshape(-1,1))
+                        for f_name in feature_names])
         else:
             try:
                 data = mldata.data
@@ -370,4 +377,4 @@ def test(dataset_names):
         print("Accuracy = {:.2f}%".format(100*np.mean((prediction == y_test))))
 
 if __name__=='__main__':
-    test(['autos'])
+    test(['autos', 'car', 'cleveland'])
