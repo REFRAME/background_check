@@ -184,7 +184,7 @@ class Data(object):
                     'car':'uci-20070111 car',
                     # Need preprocessing :
                     'cleveland':'uci-20070111 cleveland',
-                    'dermatology':'',
+                    'dermatology':'uci-20070111 dermatology',
                     'flare':'',
                     'led7digit':'',
                     'lymphography':'',
@@ -310,6 +310,13 @@ class Data(object):
                                     data == -2147483648).any(axis=1)
             data = data[~missing]
             target = target[~missing]
+        elif name=='dermatology':
+            target = mldata.data[:,0]
+            data = mldata.data[:,1:]
+            missing = np.logical_or(np.isnan(data),
+                                    data == -2147483648).any(axis=1)
+            data = data[~missing]
+            target = target[~missing]
         else:
             try:
                 data = mldata.data
@@ -389,4 +396,4 @@ def test(dataset_names):
         print('')
 
 if __name__=='__main__':
-    test(['autos', 'car', 'cleveland'])
+    test(['dermatology'])
