@@ -38,8 +38,6 @@ def accuracy_abstention_curves(y, posteriors, x_train, x_test, n_ws=11):
     absts_ferri = np.zeros(n_ws)
     accs_ferri = np.zeros(n_ws)
 
-    a = (1/(n_classes + 1) - 0.5) / ((1/n_classes) - 1)
-    b = 0.5 - a
 
     bc = BackgroundCheck()
     bc.fit(x_train)
@@ -55,8 +53,7 @@ def accuracy_abstention_curves(y, posteriors, x_train, x_test, n_ws=11):
         absts_ferri[index] = abst_ferri
         accs_ferri[index] = acc_ferri
 
-        p_b = taus[0]*a + b
-        mu = p_b/(1 - p_b)
+        mu = taus[0]
         bc_posteriors = bc.predict_proba(x_test, mu=mu, m=0.0)
         p = np.hstack((posteriors*bc_posteriors[:, 1].reshape(-1, 1),
                        bc_posteriors[:, 0].reshape(-1, 1)))
@@ -112,13 +109,13 @@ def prune_curve(abst, acc):
 
 
 if __name__ == '__main__':
-    dataset_names = ['tic-tac', 'spambase', 'diabetes']
+    dataset_names = ['spambase']
     data = Data(dataset_names=dataset_names)
-    plt.ion()
+    # plt.ion()
     np.random.seed(42)
     mc_iterations = 20
     n_folds = 5
-    n_ws = 1000
+    n_ws = 100
     for i, (name, dataset) in enumerate(data.datasets.iteritems()):
         accuracies_ferri = np.zeros((mc_iterations * n_folds, n_ws))
         abstentions_ferri = np.zeros((mc_iterations * n_folds, n_ws))
@@ -181,4 +178,4 @@ if __name__ == '__main__':
         ax.legend(loc='lower right')
         ax.set_title(name)
 
-        plt.show()
+        # plt.show()
