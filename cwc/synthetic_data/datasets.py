@@ -190,6 +190,10 @@ class Data(object):
                     'shuttle':'shuttle',
                     'vowel':'uci-20070111 vowel',
                     'zoo':'uci-20070111 zoo',
+                    'abalone':'uci-20070111 abalone',
+                    'balance-scale': 'uci-20070111 balance-scale',
+                    # To be added:
+                    'credit-approval':'uci-20070111 credit-a',
                     # Need preprocessing :
                     'auslan':'',
                     # Needs to be generated
@@ -360,9 +364,22 @@ class Data(object):
                     self.nominal_to_float(mldata[f_name].reshape(-1,1))
                         for f_name in feature_names])
             data = np.hstack((data, mldata['int0'].T))
+        elif name=='abalone':
+            target = mldata.target
+            data = np.hstack((mldata['data'], mldata['int1'].T))
+        elif name=='balance-scale':
+            target = mldata.data
+            data = mldata.target.T
+        elif name=='credit-approval':
+            target = mldata['class']
+            data = mldata.target.T
         else:
             #from IPython import embed
             #embed()
+            for key, value in mldata.iteritems():
+                print('{} type = {}'.format(key, type(value)))
+                if type(value) == np.ndarray:
+                    print('{} shape = {}'.format(key, value.shape))
             try:
                 data = mldata.data
                 target = mldata.target
@@ -374,6 +391,14 @@ class Data(object):
                 raise
 
         return Dataset(name, data, target)
+
+    def mldata_to_numeric_matrix(self, mldata, n_samples):
+        first_column = True
+        for key, value in mldata.iteritems():
+            if type(value) == np.ndarray:
+                print('{} shape = {}'.format(key, value.shape))
+                if first_column:
+                    data = value
 
 
     def nominal_to_float(self, x):
@@ -441,13 +466,12 @@ def test_datasets(dataset_names):
     return accuracies
 
 def test():
-    dataset_names = ['autos', 'car', 'cleveland', 'dermatology', 'ecoli',
-            'flare', 'glass', 'led7digit', 'lymphography', 'nursery',
-            'page-blocks', 'pendigits', 'satimage', 'segment', 'shuttle',
-            'vehicle', 'vowel', 'yeast', 'zoo', 'auslan']
+    dataset_names = ['abalone', 'balance-scale', 'credit-approval']
 
-    not_available_yet = ['satimage', 'nursery', 'lymphography', 'auslan',
-                         'led7digit', 'yeast']
+    not_available_yet = ['derm', 'ecoli',
+                     'german', 'heart', 'hepatitis', 'horse', 'iono',
+                     'lung-cancer', 'movement', 'mushroom' 'pima', 'satellite',
+                     'segmentation', 'spambase', 'wdbc', 'wpbc', 'yeast']
 
     valid_dataset_names = [name for name in dataset_names if name not in not_available_yet]
 
