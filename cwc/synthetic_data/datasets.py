@@ -195,6 +195,7 @@ class Data(object):
                     'credit-approval':'uci-20070111 credit-a',
                     'german':'German IDA',
                     # To be added:
+                    'hepatitis':'uci-20070111 hepatitis',
                     # Need preprocessing :
                     'auslan':'',
                     # Needs to be generated
@@ -376,6 +377,11 @@ class Data(object):
             data = self.mldata_to_numeric_matrix(mldata, 690,
                                                  exclude=['class'])
             data, target = self.remove_rows_with_missing_values(data, target)
+        elif name=='hepatitis':
+            target = mldata['Class'].T
+            data = self.mldata_to_numeric_matrix(mldata, 155,
+                                                 exclude=['Class'])
+            data, target = self.remove_rows_with_missing_values(data, target)
         else:
             #from IPython import embed
             #embed()
@@ -499,10 +505,10 @@ def test_datasets(dataset_names):
 
 def test():
     dataset_names = ['abalone', 'balance-scale', 'credit-approval',
-    'dermatology', 'ecoli', 'german', 'heart-statlog']
+    'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis']
 
     not_available_yet = [
-                     'hepatitis', 'horse', 'iono',
+                     'horse', 'iono',
                      'lung-cancer', 'movement', 'mushroom' 'pima', 'satellite',
                      'segmentation', 'spambase', 'wdbc', 'wpbc', 'yeast']
 
