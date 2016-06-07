@@ -371,15 +371,11 @@ class Data(object):
             target = mldata.data
             data = mldata.target.T
         elif name=='credit-approval':
-            target = mldata['class']
-            data = mldata.target.T
+            target = mldata['class'].T
+            data = self.mldata_to_numeric_matrix(mldata, 690,
+                                                 exclude=['class'])
+            data, target = self.remove_rows_with_missing_values(data, target)
         else:
-            #from IPython import embed
-            #embed()
-            for key, value in mldata.iteritems():
-                print('{} type = {}'.format(key, type(value)))
-                if type(value) == np.ndarray:
-                    print('{} shape = {}'.format(key, value.shape))
             try:
                 data = mldata.data
                 target = mldata.target
@@ -392,16 +388,42 @@ class Data(object):
 
         return Dataset(name, data, target)
 
-    def mldata_to_numeric_matrix(self, mldata, n_samples):
+    def mldata_to_numeric_matrix(self, mldata, n_samples, exclude=[]):
+        """converts an mldata object into a matrix
+
+        for each value in the mldata dictionary it is reshaped to contain the
+        first dimension as a number of samples and the second as number of
+        features. If the value contains numerical data it is not preprocessed.
+        If the value contains any other type np.object_ it is transformed to
+        numerical and all the missing values marked with '?' or 'nan' are
+        substituted by np.nan.
+        Args:
+            mldata (dictionary with some numpy.array): feature strings.
+
+        Returns:
+            (array-like, shape = [n_samples, n_features]): floats.
+        """
         first_column = True
-        for key, value in mldata.iteritems():
-            if type(value) == np.ndarray:
-                print('{} shape = {}'.format(key, value.shape))
+        for key, submatrix in mldata.iteritems():
+            if key not in exclude and type(submatrix) == np.ndarray:
+                new_submatrix = np.copy(submatrix)
+
+                if new_submatrix.shape[0] != n_samples:
+                    new_submatrix = new_submatrix.T
+
+                if new_submatrix.dtype.type == np.object_:
+                    new_submatrix = self.nominal_to_float(new_submatrix)
+
                 if first_column:
-                    data = value
+                    matrix = new_submatrix.reshape(n_samples, -1)
+                    first_column = False
+                else:
+                    matrix = np.hstack((matrix,
+                                        new_submatrix.reshape(n_samples, -1)))
+        return matrix
 
 
-    def nominal_to_float(self, x):
+    def nominal_to_float(self, x, missing_values=['nan', '?']):
         """converts an array of nominal features into floats
 
         Missing values are marked with the string 'nan' and are converted to
@@ -418,12 +440,19 @@ class Data(object):
         names = np.unique(x)
         substract = 0
         for i, name in enumerate(names):
-            if name == 'nan':
+            if name in missing_values:
                 new_x[x==name] = np.nan
-                substract = 1
+                substract += 1
             else:
                 new_x[x==name] = i - substract
         return new_x
+
+    def remove_rows_with_missing_values(self, data, target):
+        missing = np.logical_or(np.isnan(data),
+                                data == -2147483648).any(axis=1)
+        data = data[~missing]
+        target = target[~missing]
+        return data, target
 
 
     def sumarize_datasets(self, name=None):
