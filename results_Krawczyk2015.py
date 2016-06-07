@@ -2,6 +2,8 @@ from __future__ import division
 import numpy as np
 
 from sklearn.cross_validation import StratifiedKFold
+from sklearn.svm import SVC
+
 from sklearn.svm import OneClassSVM
 from sklearn.mixture import GMM
 
@@ -13,8 +15,6 @@ from cwc.models.discriminative_models import MyDecisionTreeClassifier
 from cwc.models.background_check import BackgroundCheck
 
 def test_datasets(dataset_names):
-    from sklearn.svm import SVC
-    from sklearn.cross_validation import StratifiedKFold
     data = Data(dataset_names=dataset_names)
 
     def separate_sets(x, y, test_fold_id, test_folds):
