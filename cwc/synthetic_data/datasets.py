@@ -192,8 +192,9 @@ class Data(object):
                     'zoo':'uci-20070111 zoo',
                     'abalone':'uci-20070111 abalone',
                     'balance-scale': 'uci-20070111 balance-scale',
-                    # To be added:
                     'credit-approval':'uci-20070111 credit-a',
+                    'german':'German IDA',
+                    # To be added:
                     # Need preprocessing :
                     'auslan':'',
                     # Needs to be generated
@@ -318,8 +319,8 @@ class Data(object):
             data = data[~missing]
             target = target[~missing]
         elif name=='dermatology':
-            target = mldata.data[:,0]
-            data = mldata.data[:,1:]
+            target = mldata.data[:,-1]
+            data = mldata.data[:,:-1]
             missing = np.logical_or(np.isnan(data),
                                     data == -2147483648).any(axis=1)
             data = data[~missing]
@@ -376,6 +377,8 @@ class Data(object):
                                                  exclude=['class'])
             data, target = self.remove_rows_with_missing_values(data, target)
         else:
+            #from IPython import embed
+            #embed()
             try:
                 data = mldata.data
                 target = mldata.target
@@ -495,10 +498,11 @@ def test_datasets(dataset_names):
     return accuracies
 
 def test():
-    dataset_names = ['abalone', 'balance-scale', 'credit-approval']
+    dataset_names = ['abalone', 'balance-scale', 'credit-approval',
+    'dermatology', 'ecoli', 'german', 'heart-statlog']
 
-    not_available_yet = ['derm', 'ecoli',
-                     'german', 'heart', 'hepatitis', 'horse', 'iono',
+    not_available_yet = [
+                     'hepatitis', 'horse', 'iono',
                      'lung-cancer', 'movement', 'mushroom' 'pima', 'satellite',
                      'segmentation', 'spambase', 'wdbc', 'wpbc', 'yeast']
 
