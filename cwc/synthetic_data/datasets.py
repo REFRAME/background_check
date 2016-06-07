@@ -194,8 +194,9 @@ class Data(object):
                     'balance-scale': 'uci-20070111 balance-scale',
                     'credit-approval':'uci-20070111 credit-a',
                     'german':'German IDA',
-                    # To be added:
                     'hepatitis':'uci-20070111 hepatitis',
+                    'lung-cancer':'Lung Cancer (Michigan)',
+                    # To be added:
                     # Need preprocessing :
                     'auslan':'',
                     # Needs to be generated
@@ -382,6 +383,10 @@ class Data(object):
             data = self.mldata_to_numeric_matrix(mldata, 155,
                                                  exclude=['Class'])
             data, target = self.remove_rows_with_missing_values(data, target)
+        elif name=='lung-cancer':
+            target = mldata['Class'].T
+            data = self.mldata_to_numeric_matrix(mldata, 96,
+                                                 exclude=['Class'])
         else:
             #from IPython import embed
             #embed()
@@ -505,11 +510,12 @@ def test_datasets(dataset_names):
 
 def test():
     dataset_names = ['abalone', 'balance-scale', 'credit-approval',
-    'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis']
+    'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis', 'horse',
+    'ionosphere', 'lung-cancer']
 
     not_available_yet = [
-                     'horse', 'iono',
-                     'lung-cancer', 'movement', 'mushroom' 'pima', 'satellite',
+                     'horse',
+                     'movement', 'mushroom' 'pima', 'satellite',
                      'segmentation', 'spambase', 'wdbc', 'wpbc', 'yeast']
 
     valid_dataset_names = [name for name in dataset_names if name not in not_available_yet]
