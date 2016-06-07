@@ -60,106 +60,6 @@ class Dataset(object):
         print('Target labels = {}'.format(self.names))
 
 
-class MLData(object):
-    mldata_names = {'diabetes':'diabetes',
-                    'ecoli':'uci-20070111 ecoli',
-                    'glass':'glass',
-                    'heart-statlog':'datasets-UCI heart-statlog',
-                    'ionosphere':'ionosphere',
-                    'iris':'iris',
-                    'letter':'letter',
-                    'mfeat-karhunen':'uci-20070111 mfeat-karhunen',
-                    'mfeat-morphological':'uci-20070111 mfeat-morphological',
-                    'mfeat-zernike':'uci-20070111 mfeat-zernike',
-                    'optdigits':'uci-20070111 optdigits',
-                    'pendigits':'uci-20070111 pendigits',
-                    'sonar':'sonar',
-                    'vehicle':'vehicle',
-                    'waveform-5000':'datasets-UCI waveform-5000',
-                    'scene-classification':'scene-classification',
-                    #'spam':'uci-20070111 spambase',
-                    'tic-tac':'uci-20070111 tic-tac-toe',
-                    'MNIST':'MNIST (original)'}
-
-    def __init__(self, data_home='./datasets/', load_all=False):
-        warnings.simplefilter('always', DeprecationWarning)
-        warnings.warn(('This Class is going to be deprecated in a future '
-                       'version, please use cwc.synthetic_data.Data instead.'),
-                      DeprecationWarning)
-        self.data_home = data_home
-        self.datasets = {}
-
-        if load_all:
-            for key in MLData.mldata_names.keys():
-                self.datasets[key] = self.get_dataset(key)
-
-    def get_dataset(self, name):
-        mldata = fetch_mldata(MLData.mldata_names[name], data_home=self.data_home)
-
-        if name=='ecoli':
-            data = mldata.target.T
-            target = mldata.data
-        elif name=='diabetes':
-            data = mldata.data
-            target = mldata.target
-        elif name=='optdigits':
-            data = mldata.data[:,:-1]
-            target = mldata.data[:,-1]
-        elif name=='pendigits':
-            data = mldata.data[:,:-1]
-            target = mldata.data[:,-1]
-        elif name=='waveform-5000':
-            data = mldata.target.T
-            target = mldata.data
-        elif name=='heart-statlog':
-            data = np.hstack([mldata['target'].T, mldata.data, mldata['int2'].T])
-            target = mldata['class']
-        elif name=='mfeat-karhunen':
-            data = mldata.target.T
-            target = mldata.data
-        elif name=='mfeat-zernike':
-            data = mldata.target.T
-            target = mldata.data
-        elif name=='mfeat-morphological':
-            data = mldata.target.T
-            target = mldata.data
-        elif name=='scene-classification':
-            data = mldata.data
-            target = mldata.target.toarray()
-            target = target.transpose()[:,4]
-        elif name=='tic-tac':
-            n = np.alen(mldata.data)
-            data = np.hstack((mldata.data.reshape(n,1),
-                                     np.vstack([mldata[feature] for feature in
-                                                mldata.keys() if 'square' in
-                                                feature]).T,
-                                     mldata.target.reshape(n,1)))
-            for i, value in enumerate(np.unique(data)):
-                data[data==value] = i
-            data = data.astype(float)
-            target = mldata.Class.reshape(n,1)
-        else:
-            try:
-                data = mldata.data
-                target = mldata.target
-            except KeyError:
-                print "KeyError: {}".format(name)
-                raise
-            except AttributeError:
-                print "AttributeError: {}".format(name)
-                raise
-
-        return Dataset(name, data, target)
-
-
-    def sumarize_datasets(self, name=None):
-        if name is not None:
-            dataset = self.datasets[name]
-            dataset.print_summary()
-        else:
-            for name, dataset in self.datasets.iteritems():
-                dataset.print_summary()
-
 class Data(object):
     mldata_names = {'diabetes':'diabetes',
                     'ecoli':'uci-20070111 ecoli',
@@ -196,7 +96,9 @@ class Data(object):
                     'german':'German IDA',
                     'hepatitis':'uci-20070111 hepatitis',
                     'lung-cancer':'Lung Cancer (Michigan)',
+                    'mushroom':'uci-20070111 mushroom',
                     # To be added:
+                    'breast-cancer-w':'uci-20070111 wisconsin',
                     # Need preprocessing :
                     'auslan':'',
                     # Needs to be generated
@@ -229,9 +131,16 @@ class Data(object):
         if name in Data.mldata_names.keys():
             return self.get_mldata_dataset(name)
         elif name == 'spambase':
-            data = np.load('./datasets/uci_spambase.npy')
+            data = np.load(self.data_home+'uci_spambase.npy')
             target = data[:,-1]
             data = data[:,0:-1]
+        elif name == 'horse':
+            data = np.genfromtxt(self.data_home+'horse-colic.data.txt')
+            target = data[:,23]
+            data = np.delete(data, 23, axis=1)
+            #data = self.remove_columns_with_missing_values(data, 5)
+            #data, target = self.remove_rows_with_missing_values(data, target)
+            data = self.substitute_missing_values(data, fix_value=0, column_mean=False)
         else:
             raise Exception('Dataset {} not available'.format(name))
         return Dataset(name, data, target)
@@ -387,6 +296,12 @@ class Data(object):
             target = mldata['Class'].T
             data = self.mldata_to_numeric_matrix(mldata, 96,
                                                  exclude=['Class'])
+        elif name=='mushroom':
+            from IPython import embed
+            embed()
+        elif name=='breast-cancer-w':
+            from IPython import embed
+            embed()
         else:
             #from IPython import embed
             #embed()
@@ -468,6 +383,23 @@ class Data(object):
         target = target[~missing]
         return data, target
 
+    def remove_columns_with_missing_values(self, data, n_columns=1):
+        for i in range(n_columns):
+            index = np.isnan(data).sum(axis=0).argmax()
+            data = np.delete(data, index, axis=1)
+        return data
+
+
+    def substitute_missing_values(self, data, fix_value=0, column_mean=True):
+        for i in range(data.shape[1]):
+            index = np.where(np.isnan(data[:,i]))
+            if column_mean:
+                mean = np.nanmean(data[:,i])
+                data[index,i] = mean
+            else:
+                data[index,i] = fix_value
+        return data
+
 
     def sumarize_datasets(self, name=None):
         if name is not None:
@@ -511,12 +443,13 @@ def test_datasets(dataset_names):
 def test():
     dataset_names = ['abalone', 'balance-scale', 'credit-approval',
     'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis', 'horse',
-    'ionosphere', 'lung-cancer']
+    'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
+    'landsat-satellite', 'segment', 'spambase', 'breast-cancer-w']
 
     not_available_yet = [
-                     'horse',
-                     'movement', 'mushroom' 'pima', 'satellite',
-                     'segmentation', 'spambase', 'wdbc', 'wpbc', 'yeast']
+                     'mushroom', 'landsat-satellite',
+                     'libras-movement',
+                     'wdbc', 'breast-cancer-w', 'yeast']
 
     valid_dataset_names = [name for name in dataset_names if name not in not_available_yet]
 
@@ -525,6 +458,21 @@ def test():
         print("{}. {} Acc = {:.2f}% +- {:.2f}".format(
                 np.where(np.array(dataset_names) == name)[0]+1,
                 name, accuracies[name].mean(), accuracies[name].std()))
+
+
+class MLData(Data):
+    def __init__(self, data_home='./datasets/', load_all=False):
+        warnings.simplefilter('always', DeprecationWarning)
+        warnings.warn(('This Class is going to be deprecated in a future '
+                       'version, please use cwc.synthetic_data.Data instead.'),
+                      DeprecationWarning)
+        self.data_home = data_home
+        self.datasets = {}
+
+        if load_all:
+            for key in MLData.mldata_names.keys():
+                self.datasets[key] = self.get_dataset(key)
+
 
 if __name__=='__main__':
     test()
