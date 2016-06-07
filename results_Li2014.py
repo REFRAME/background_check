@@ -75,6 +75,12 @@ def prune_ensemble(ensemble, x, n_pruned):
 
 
 def main():
+    # All the datasets used in Li2014
+    #dataset_names = ['abalone', 'balance-scale', 'credit-approval',
+    #'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis', 'horse',
+    #'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
+    #'landsat-satellite', 'segment', 'spambase', 'breast-cancer-w', 'yeast']
+
     dataset_names = ['heart-statlog']
     data = Data(dataset_names=dataset_names)
     np.random.seed(42)
