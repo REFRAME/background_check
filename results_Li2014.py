@@ -74,7 +74,7 @@ def prune_ensemble(ensemble, x, n_pruned):
     return pruned_ensemble, confidences[sorted_indices[:n_pruned]]
 
 
-if __name__ == '__main__':
+def main():
     dataset_names = ['heart-statlog']
     data = Data(dataset_names=dataset_names)
     np.random.seed(42)
@@ -86,7 +86,7 @@ if __name__ == '__main__':
     estimator_type = "gmm"
     print estimator_type
     for i, (name, dataset) in enumerate(data.datasets.iteritems()):
-        data.sumarize_datasets(name)
+        dataset.print_summary()
         accuracies = np.zeros(mc_iterations * n_folds)
         for mc in np.arange(mc_iterations):
             skf = StratifiedKFold(dataset.target, n_folds=n_folds,
@@ -115,3 +115,7 @@ if __name__ == '__main__':
                 accuracies[mc * n_folds + test_fold] = accuracy
     print('Mean accuracy={}'.format(np.mean(accuracies)))
     print('Std accuracy={}'.format(np.std(accuracies)))
+
+
+if __name__ == '__main__':
+    main()
