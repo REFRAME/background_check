@@ -53,11 +53,16 @@ class Dataset(object):
         return self._counts
 
     def print_summary(self):
-        print('Name = {}'.format(self.name))
-        print('Data shape = {}'.format(self.data.shape))
-        print('Target shape = {}'.format(self.target.shape))
-        print('Target classes = {}'.format(self.classes))
-        print('Target labels = {}'.format(self.names))
+        print self
+
+    def __str__(self):
+        return('Name = {}\n'
+               'Data shape = {}\n'
+               'Target shape = {}\n'
+               'Target classes = {}\n'
+               'Target labels = {}\n').format(self.name, self.data.shape,
+                                              self.target.shape, self.classes,
+                                              self.names)
 
 
 class Data(object):
