@@ -82,7 +82,6 @@ class Data(object):
                     'vehicle':'vehicle',
                     'waveform-5000':'datasets-UCI waveform-5000',
                     'scene-classification':'scene-classification',
-                    #'spam':'uci-20070111 spambase', # not working
                     'tic-tac':'uci-20070111 tic-tac-toe',
                     'MNIST':'MNIST (original)',
                     'autos':'uci-20070111 autos',
@@ -101,6 +100,10 @@ class Data(object):
                     'german':'German IDA',
                     'hepatitis':'uci-20070111 hepatitis',
                     'lung-cancer':'Lung Cancer (Michigan)',
+                    }
+
+    mldata_not_working = {
+                    #'spam':'uci-20070111 spambase', # not working
                     'mushroom':'uci-20070111 mushroom',
                     # To be added:
                     'breast-cancer-w':'uci-20070111 wisconsin',
@@ -114,7 +117,7 @@ class Data(object):
                     # HTTP Error 500 in mldata.org
                     'satimage':'satimage',
                     'nursery':'uci-20070111 nursery'
-                    }
+            }
 
     def __init__(self, data_home='./datasets/', dataset_names=None, load_all=False):
         self.data_home = data_home
@@ -129,7 +132,13 @@ class Data(object):
 
     def load_datasets_by_name(self, names):
         for name in names:
-            self.datasets[name] = self.get_dataset_by_name(name)
+            dataset = self.get_dataset_by_name(name)
+            if dataset is not None:
+                self.datasets[name] = self.get_dataset_by_name(name)
+            else:
+                warnings.simplefilter('always', UserWarning)
+                warnings.warn(("Dataset '{}' not currently available.".format(name)),
+                              UserWarning)
 
 
     def get_dataset_by_name(self, name):
@@ -151,8 +160,17 @@ class Data(object):
                     delimiter=',')
             target = data[:,-1]
             data = np.delete(data, -1, axis=1)
+        elif name == 'mushroom':
+            data = np.genfromtxt(self.data_home+'agaricus-lepiota.data',
+                    delimiter=',', dtype=np.object_)
+            target = data[:,0]
+            data = np.delete(data, 0, axis=1)
+            for i in range(data.shape[1]):
+                data[:,i] = self.nominal_to_float(data[:,i])
+            data = data.astype(float)
+            data = self.substitute_missing_values(data, fix_value=0, column_mean=False)
         else:
-            raise Exception('Dataset {} not available'.format(name))
+            return None
         return Dataset(name, data, target)
 
 
@@ -160,8 +178,7 @@ class Data(object):
         try:
             mldata = fetch_mldata(Data.mldata_names[name], data_home=self.data_home)
         except Exception:
-            from IPython import embed
-            embed()
+            return None
 
         if name=='ecoli':
             data = mldata.target.T
@@ -310,24 +327,14 @@ class Data(object):
             target = mldata['Class'].T
             data = self.mldata_to_numeric_matrix(mldata, 96,
                                                  exclude=['Class'])
-        elif name=='mushroom':
-            from IPython import embed
-            embed()
-        elif name=='breast-cancer-w':
-            from IPython import embed
-            embed()
         else:
-            #from IPython import embed
-            #embed()
             try:
                 data = mldata.data
                 target = mldata.target
-            except KeyError:
-                print "KeyError: {}".format(name)
-                raise
-            except AttributeError:
-                print "AttributeError: {}".format(name)
-                raise
+            except Exception:
+            #from IPython import embed
+            #embed()
+                return None
 
         return Dataset(name, data, target)
 
@@ -455,25 +462,21 @@ def test_datasets(dataset_names):
     return accuracies
 
 def test():
-    dataset_names = ['abalone', 'balance-scale', 'credit-approval',
+    datasets_Li2014 = ['abalone', 'balance-scale', 'credit-approval',
     'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis', 'horse',
     'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
     'landsat-satellite', 'segment', 'spambase', 'breast-cancer-w', 'yeast']
 
-    dataset_names = ['libras-movement']
 
-    # not_available_yet = [
-    #                  'mushroom', 'landsat-satellite',
-    #                  'libras-movement',
-    #                  'wdbc', 'breast-cancer-w', 'yeast']
-
-    #valid_dataset_names = [name for name in dataset_names if name not in not_available_yet]
+    dataset_names = datasets_Li2014
 
     accuracies = test_datasets(dataset_names)
-    for name in dataset_names:
-        print("{}. {} Acc = {:.2f}% +- {:.2f}".format(
-                np.where(np.array(dataset_names) == name)[0]+1,
-                name, accuracies[name].mean(), accuracies[name].std()))
+    for i, name in enumerate(dataset_names):
+        if name in accuracies.keys():
+            print("{}. {} Acc = {:.2f}% +- {:.2f}".format(
+                  i+1, name, accuracies[name].mean(), accuracies[name].std()))
+        else:
+            print("{}. {}  Not Available yet".format(i+1, name))
 
 
 class MLData(Data):
