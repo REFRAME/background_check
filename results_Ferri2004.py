@@ -12,6 +12,7 @@ from cwc.synthetic_data.datasets import Data
 from cwc.models.discriminative_models import MyDecisionTreeClassifier
 from cwc.models.background_check import BackgroundCheck
 
+
 def separate_sets(x, y, test_fold_id, test_folds):
     x_test = x[test_folds == test_fold_id, :]
     y_test = y[test_folds == test_fold_id]
@@ -38,7 +39,6 @@ def accuracy_abstention_curves(y, posteriors, x_train, x_test, n_ws=11):
     absts_ferri = np.zeros(n_ws)
     accs_ferri = np.zeros(n_ws)
 
-
     bc = BackgroundCheck()
     bc.fit(x_train)
     absts_bc = np.zeros(n_ws)
@@ -62,41 +62,6 @@ def accuracy_abstention_curves(y, posteriors, x_train, x_test, n_ws=11):
         absts_bc[index] = abst_bc
         accs_bc[index] = acc_bc
     return absts_ferri, accs_ferri, absts_bc, accs_bc
-
-
-def accuracy_abstention_curve_ferri(y, posteriors, n_ws=11):
-    n_classes = np.alen(np.unique(y))
-    ks = np.ones(n_classes) / n_classes
-    ws = np.linspace(0.0, 1.01, n_ws)
-    accuracies = np.zeros(n_ws)
-    abstentions = np.zeros(n_ws)
-    for index, w in enumerate(ws):
-        taus = (1.0 - ks) * w + ks
-        predictions = np.argmax(posteriors / taus, axis=1)
-        predictions[posteriors[np.arange(np.alen(predictions)),
-                               predictions] < taus[predictions]] = n_classes
-        abstention, accuracy = get_abstention_accuracy(y, predictions)
-        abstentions[index] = abstention
-        accuracies[index] = accuracy
-    return abstentions, accuracies
-
-
-def accuracy_abstention_curve_bc(y, posteriors, x_train, x_test, n_mus=11):
-    mus = np.linspace(0.0, 1.01, n_mus)
-    accuracies = np.zeros(n_mus)
-    abstentions = np.zeros(n_mus)
-    #sv = OneClassSVM(nu=0.1, gamma=0.5)
-    bc = BackgroundCheck()
-    bc.fit(x_train)
-    for index, mu in enumerate(mus):
-        bc_posteriors = bc.predict_proba(x_test, mu=mu, m=0.0)
-        p = np.hstack((posteriors*bc_posteriors[:, 1].reshape(-1, 1),
-                       bc_posteriors[:, 0].reshape(-1, 1)))
-        predictions = np.argmax(p, axis=1)
-        abstention, accuracy = get_abstention_accuracy(y, predictions)
-        abstentions[index] = abstention
-        accuracies[index] = accuracy
-    return abstentions, accuracies
 
 
 def prune_curve(abst, acc):
