@@ -43,9 +43,9 @@ def main(dataset_names=None):
         'landsat-satellite', 'segment', 'spambase', 'wdbc', 'wpbc', 'yeast']
 
     seed_num = 42
-    mc_iterations = 2
-    n_folds = 2
-    n_ensemble = 2
+    mc_iterations = 20
+    n_folds = 5
+    n_ensemble = 100
     estimator_type = "gmm"
 
     # Diary to save the partial and final results
@@ -63,13 +63,13 @@ def main(dataset_names=None):
     columns=['dataset', 'method', 'mc', 'test_fold', 'acc']
     df = MyDataFrame(columns=columns)
 
-    np.random.seed(seed_num)
     diary.add_entry('parameters', ['seed', seed_num, 'mc_it', mc_iterations,
                                    'n_folds', n_folds, 'n_ensemble',
                                    n_ensemble,
                                    'estimator_type', estimator_type])
     data = Data(dataset_names=dataset_names)
     for i, (name, dataset) in enumerate(data.datasets.iteritems()):
+        np.random.seed(seed_num)
         dataset.print_summary()
         diary.add_entry('datasets', [dataset.__str__()])
         accuracies = np.zeros(mc_iterations * n_folds)
