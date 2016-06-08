@@ -1,4 +1,5 @@
 from __future__ import division
+from optparse import OptionParser
 import numpy as np
 
 from sklearn.cross_validation import StratifiedKFold
@@ -33,17 +34,18 @@ class MyDataFrame(pd.DataFrame):
         return self.append(dfaux, ignore_index=True)
 
 
-def main():
-    # All the datasets used in Li2014
-    dataset_names = ['abalone', 'balance-scale', 'credit-approval',
-    'dermatology', 'german', 'heart-statlog', 'hepatitis', 'horse',
-    'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
-    'landsat-satellite', 'segment', 'spambase', 'breast-cancer-w', 'yeast']
+def main(dataset_names=None):
+    if dataset_names == None:
+        # All the datasets used in Li2014
+        dataset_names = ['abalone', 'balance-scale', 'credit-approval',
+        'dermatology', 'german', 'heart-statlog', 'hepatitis', 'horse',
+        'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
+        'landsat-satellite', 'segment', 'spambase', 'wdbc', 'wpbc', 'yeast']
 
     seed_num = 42
     mc_iterations = 2
     n_folds = 2
-    n_ensemble = 20
+    n_ensemble = 2
     estimator_type = "gmm"
 
     # Diary to save the partial and final results
@@ -120,4 +122,13 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    parser = OptionParser()
+    parser.add_option("-d", "--dataset_names", dest="dataset_names",
+                              help="list of dataset names")
+
+    (options, args) = parser.parse_args()
+    if hasattr(options, 'dataset_names'):
+        dataset_names = options.dataset_names.split(',')
+        main(dataset_names)
+    else:
+        main()
