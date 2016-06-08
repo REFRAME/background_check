@@ -35,11 +35,10 @@ class MyDataFrame(pd.DataFrame):
 
 def main():
     # All the datasets used in Li2014
-    #dataset_names = ['abalone', 'balance-scale', 'credit-approval',
-    #'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis', 'horse',
-    #'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
-    #'landsat-satellite', 'segment', 'spambase', 'breast-cancer-w', 'yeast']
-    dataset_names = ['ionosphere', 'heart-statlog', 'iris']
+    dataset_names = ['abalone', 'balance-scale', 'credit-approval',
+    'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis', 'horse',
+    'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
+    'landsat-satellite', 'segment', 'spambase', 'breast-cancer-w', 'yeast']
     seed_num = 42
     mc_iterations = 20
     n_folds = 5
