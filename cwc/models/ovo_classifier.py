@@ -16,9 +16,13 @@ class OvoClassifier(object):
         self._combinations = []
         self._n_classes = 0
 
-    def fit(self, X, y):
+    def fit(self, X, y, total_classes=0):
         classes = np.unique(y)
-        self._n_classes = np.alen(classes)
+        n_classes = np.alen(classes)
+        if total_classes > 0:
+            self._n_classes = total_classes
+        else:
+            self._n_classes = n_classes
         self._combinations = np.array([[c1, c2] for i, c1 in enumerate(classes)
                                       for c2 in classes[i+1:]])
         for index, combination in enumerate(self._combinations):

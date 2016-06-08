@@ -36,7 +36,7 @@ class MyDataFrame(pd.DataFrame):
 def main():
     # All the datasets used in Li2014
     dataset_names = ['abalone', 'balance-scale', 'credit-approval',
-    'dermatology', 'german', 'heart-statlog', 'hepatitis', 'horse',
+    'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis', 'horse',
     'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
     'landsat-satellite', 'segment', 'spambase', 'breast-cancer-w', 'yeast']
 
@@ -104,6 +104,7 @@ def main():
                 ensemble_li = Ensemble(n_ensemble=n_ensemble, lambd=1e-8)
                 ensemble_li.fit(x_train, y_train, xs=xs_bootstrap,
                                 ys=ys_bootstrap)
+                print ensemble_li._n_ensemble
                 accuracy_li = ensemble_li.accuracy(x_test, y_test)
                 accuracies_li[mc * n_folds + test_fold] = accuracy_li
                 diary.add_entry('validation', ['dataset', name,
