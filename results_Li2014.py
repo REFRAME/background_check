@@ -43,8 +43,8 @@ def main(dataset_names=None):
         'landsat-satellite', 'segment', 'spambase', 'wdbc', 'wpbc', 'yeast']
 
     seed_num = 42
-    mc_iterations = 2
-    n_folds = 2
+    mc_iterations = 20
+    n_folds = 5
     n_ensemble = 20
     estimator_type = "gmm"
 
@@ -106,7 +106,7 @@ def main(dataset_names=None):
                 ensemble_li = Ensemble(n_ensemble=n_ensemble, lambd=1e-8)
                 ensemble_li.fit(x_train, y_train, xs=xs_bootstrap,
                                 ys=ys_bootstrap)
-                
+
                 accuracy_li = ensemble_li.accuracy(x_test, y_test)
                 accuracies_li[mc * n_folds + test_fold] = accuracy_li
                 diary.add_entry('validation', ['dataset', name,
@@ -128,7 +128,7 @@ if __name__ == '__main__':
                               help="list of dataset names")
 
     (options, args) = parser.parse_args()
-    if hasattr(options, 'dataset_names'):
+    if hasattr(options, 'dataset_names') and options.dataset_names is not None:
         dataset_names = options.dataset_names.split(',')
         main(dataset_names)
     else:
