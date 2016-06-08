@@ -1,3 +1,6 @@
+from __future__ import division
+import numpy as np
+
 from background_check import BackgroundCheck
 from discriminative_models import MyDecisionTreeClassifier
 
