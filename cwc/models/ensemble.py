@@ -20,13 +20,24 @@ class Ensemble(object):
         self._percent = bootstrap_percent
         self._lambda = lambd
 
-    def fit(self, X, y):
+    def fit(self, X, y, xs=None, ys=None):
+        init = xs is None
+        if init:
+            xs = []
+            ys = []
         for c_index in np.arange(self._n_ensemble):
-            x_train, y_train = bootstrap(X, y, self._percent)
+            if init:
+                x_train, y_train = bootstrap(X, y, self._percent)
+                xs.append(x_train)
+                ys.append(y_train)
+            else:
+                x_train = xs[c_index]
+                y_train = ys[c_index]
             c = copy.deepcopy(self._base_classifier)
             c.fit(x_train, y_train)
             self._classifiers.append(c)
         self.prune_ensemble(X, y)
+        return xs, ys
 
     def prune_ensemble(self, X, y):
         predictions, confidences = self.get_weights(X, y)

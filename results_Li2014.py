@@ -36,13 +36,13 @@ class MyDataFrame(pd.DataFrame):
 def main():
     # All the datasets used in Li2014
     dataset_names = ['abalone', 'balance-scale', 'credit-approval',
-    'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis', 'horse',
+    'dermatology', 'german', 'heart-statlog', 'hepatitis', 'horse',
     'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
     'landsat-satellite', 'segment', 'spambase', 'breast-cancer-w', 'yeast']
 
     seed_num = 42
-    mc_iterations = 20
-    n_folds = 5
+    mc_iterations = 2
+    n_folds = 2
     n_ensemble = 20
     estimator_type = "gmm"
 
@@ -91,7 +91,7 @@ def main():
                 ovo = OvoClassifier(base_classifier=classifier)
                 ensemble = Ensemble(base_classifier=ovo,
                                     n_ensemble=n_ensemble)
-                ensemble.fit(x_train, y_train)
+                xs_bootstrap, ys_bootstrap = ensemble.fit(x_train, y_train)
                 accuracy = ensemble.accuracy(x_test, y_test)
                 accuracies[mc * n_folds + test_fold] = accuracy
                 diary.add_entry('validation', ['dataset', name,
@@ -102,7 +102,8 @@ def main():
                 df = df.append_rows([[name, 'our', mc, test_fold, accuracy]])
 
                 ensemble_li = Ensemble(n_ensemble=n_ensemble, lambd=1e-8)
-                ensemble_li.fit(x_train, y_train)
+                ensemble_li.fit(x_train, y_train, xs=xs_bootstrap,
+                                ys=ys_bootstrap)
                 accuracy_li = ensemble_li.accuracy(x_test, y_test)
                 accuracies_li[mc * n_folds + test_fold] = accuracy_li
                 diary.add_entry('validation', ['dataset', name,
