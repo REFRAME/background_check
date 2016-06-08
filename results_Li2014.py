@@ -39,6 +39,7 @@ def main():
     'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis', 'horse',
     'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
     'landsat-satellite', 'segment', 'spambase', 'breast-cancer-w', 'yeast']
+
     seed_num = 42
     mc_iterations = 20
     n_folds = 5
@@ -115,13 +116,6 @@ def main():
     table = df.pivot_table(values=['acc'], index=['dataset'],
                                   columns=['method'], aggfunc=[np.mean, np.std])
     diary.add_entry('summary', [table])
-# <<<<<<< HEAD
-#
-#     print('Mean accuracy BC={}'.format(np.mean(accuracies)))
-#     print('Std accuracy BC={}'.format(np.std(accuracies)))
-#     print('Mean accuracy Li={}'.format(np.mean(accuracies_li)))
-#     print('Std accuracy Li={}'.format(np.std(accuracies_li)))
-# =======
 
 
 if __name__ == '__main__':
