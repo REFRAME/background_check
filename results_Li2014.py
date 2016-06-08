@@ -36,7 +36,7 @@ class MyDataFrame(pd.DataFrame):
 def main():
     # All the datasets used in Li2014
     dataset_names = ['abalone', 'balance-scale', 'credit-approval',
-    'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis', 'horse',
+    'dermatology', 'german', 'heart-statlog', 'hepatitis', 'horse',
     'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
     'landsat-satellite', 'segment', 'spambase', 'breast-cancer-w', 'yeast']
 
@@ -52,7 +52,7 @@ def main():
     # Hyperparameters for this experiment (folds, iterations, seed)
     diary.add_notebook('parameters', verbose=True)
     # Summary for each dataset
-    diary.add_notebook('datasets', verbose=True)
+    diary.add_notebook('datasets', verbose=False)
     # Partial results for validation
     diary.add_notebook('validation', verbose=True)
     # Final results
@@ -69,7 +69,7 @@ def main():
     data = Data(dataset_names=dataset_names)
     for i, (name, dataset) in enumerate(data.datasets.iteritems()):
         dataset.print_summary()
-        diary.add_entry('datasets', [dataset])
+        diary.add_entry('datasets', [dataset.__str__()])
         accuracies = np.zeros(mc_iterations * n_folds)
         accuracies_li = np.zeros(mc_iterations * n_folds)
         for mc in np.arange(mc_iterations):
