@@ -39,7 +39,7 @@ def main():
     #'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis', 'horse',
     #'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
     #'landsat-satellite', 'segment', 'spambase', 'breast-cancer-w', 'yeast']
-    dataset_names = ['ionosphere', 'heart-statlog', 'iris']
+    dataset_names = ['ionosphere', 'heart-statlog', 'balance-scale']
     seed_num = 42
     mc_iterations = 20
     n_folds = 5
