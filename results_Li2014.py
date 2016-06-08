@@ -13,6 +13,8 @@ from cwc.synthetic_data.datasets import Data
 from cwc.models.ovo_classifier import OvoClassifier
 from cwc.models.confident_classifier import ConfidentClassifier
 
+import pandas as pd
+from diary import Diary
 
 def separate_sets(x, y, test_fold_id, test_folds):
     x_test = x[test_folds == test_fold_id, :]
@@ -123,6 +125,10 @@ def ensemble_predictions_li(ensemble_li, weights, x):
 
     return votes.argmax(axis=1)
 
+class MyDataFrame(pd.DataFrame):
+    def append_rows(self, rows):
+        dfaux = pd.DataFrame(rows, columns=self.columns)
+        return self.append(dfaux, ignore_index=True)
 
 def main():
     # All the datasets used in Li2014
@@ -130,19 +136,40 @@ def main():
     #'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis', 'horse',
     #'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
     #'landsat-satellite', 'segment', 'spambase', 'breast-cancer-w', 'yeast']
+    dataset_names = ['ionosphere', 'heart-statlog', 'iris']
+    seed_num = 42
+    mc_iterations = 2 ##20
+    n_folds = 2 ##5
+    n_ensemble = 10 ##100
+    n_pruned = 2 #10
+    bootstrap_percent = 0.5 #0.75
+    estimator_type = "gmm" #"gmm"
 
-    dataset_names = ['heart-statlog']
+    # Diary to save the partial and final results
+    diary = Diary(name='results_Li2014', path='results', overwrite=False,
+                  fig_format='svg')
+    # Hyperparameters for this experiment (folds, iterations, seed)
+    diary.add_notebook('parameters', verbose=True)
+    # Summary for each dataset
+    diary.add_notebook('datasets', verbose=True)
+    # Partial results for validation
+    diary.add_notebook('validation', verbose=True)
+    # Final results
+    diary.add_notebook('summary', verbose=True)
+
+    columns=['dataset', 'method', 'mc', 'test_fold', 'acc']
+    df = MyDataFrame(columns=columns)
+
+    np.random.seed(seed_num)
+    diary.add_entry('parameters', ['seed', seed_num, 'mc_it', mc_iterations,
+                                   'n_folds', n_folds, 'n_ensemble',
+                                   n_ensemble, 'n_pruned', n_pruned,
+                                   'bootstrap_perc', bootstrap_percent,
+                                   'estimator_type', estimator_type])
     data = Data(dataset_names=dataset_names)
-    np.random.seed(42)
-    mc_iterations = 20
-    n_folds = 5
-    n_ensemble = 100
-    n_pruned = 10
-    bootstrap_percent = 0.75
-    estimator_type = "gmm"
-    print estimator_type
     for i, (name, dataset) in enumerate(data.datasets.iteritems()):
         dataset.print_summary()
+        diary.add_entry('datasets', [dataset])
         accuracies = np.zeros(mc_iterations * n_folds)
         accuracies_li = np.zeros(mc_iterations * n_folds)
         for mc in np.arange(mc_iterations):
@@ -180,15 +207,29 @@ def main():
                 predictions = ensemble_predictions(ensemble, weights, x_test)
                 accuracy = np.mean(predictions == y_test)
                 accuracies[mc * n_folds + test_fold] = accuracy
+                diary.add_entry('validation', ['dataset', name,
+                                               'method', 'our',
+                                               'mc', mc,
+                                               'test_fold', test_fold,
+                                               'acc', accuracy])
+                df = df.append_rows([[name, 'our', mc, test_fold, accuracy]])
+
 
                 predictions_li = ensemble_predictions_li(ensemble_li,
                                                          weights_li, x_test)
                 accuracy_li = np.mean(predictions_li == y_test)
                 accuracies_li[mc * n_folds + test_fold] = accuracy_li
-    print('Mean accuracy BC={}'.format(np.mean(accuracies)))
-    print('Std accuracy BC={}'.format(np.std(accuracies)))
-    print('Mean accuracy Li={}'.format(np.mean(accuracies_li)))
-    print('Std accuracy Li={}'.format(np.std(accuracies_li)))
+                diary.add_entry('validation', ['dataset', name,
+                                               'method', 'Li2014',
+                                               'mc', mc,
+                                               'test_fold', test_fold,
+                                               'acc', accuracy_li])
+                df = df.append_rows([[name, 'Li2014', mc, test_fold, accuracy_li]])
+
+    df = df.convert_objects(convert_numeric=True)
+    table = df.pivot_table(values=['acc'], index=['dataset'],
+                                  columns=['method'], aggfunc=[np.mean, np.std])
+    diary.add_entry('summary', [table])
 
 
 if __name__ == '__main__':

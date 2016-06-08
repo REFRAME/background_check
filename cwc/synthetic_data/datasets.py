@@ -53,11 +53,17 @@ class Dataset(object):
         return self._counts
 
     def print_summary(self):
-        print('Name = {}'.format(self.name))
-        print('Data shape = {}'.format(self.data.shape))
-        print('Target shape = {}'.format(self.target.shape))
-        print('Target classes = {}'.format(self.classes))
-        print('Target labels = {}'.format(self.names))
+        print(self)
+
+
+    def __str__(self):
+        return ('Name = {}\n'
+                'Data shape = {}\n'
+                'Target shape = {}\n'
+                'Target classes = {}\n'
+                'Target labels = {}').format(self.name, self.data.shape,
+                                             self.target.shape, self.classes,
+                                             self.names)
 
 
 class Data(object):
@@ -96,19 +102,18 @@ class Data(object):
                     'german':'German IDA',
                     'hepatitis':'uci-20070111 hepatitis',
                     'lung-cancer':'Lung Cancer (Michigan)',
-                    'mushroom':'uci-20070111 mushroom',
                     # To be added:
                     'breast-cancer-w':'uci-20070111 wisconsin',
                     # Need preprocessing :
                     'auslan':'',
                     # Needs to be generated
                     'led7digit':'',
-                    'yeast':'',
                     # Needs permission from ml-repository@ics.uci.edu
                     'lymphography':'',
                     # HTTP Error 500 in mldata.org
                     'satimage':'satimage',
-                    'nursery':'uci-20070111 nursery'
+                    'nursery':'uci-20070111 nursery',
+                    'mushroom':'datasets-UCI mushroom' #'uci-20070111 mushroom'
                     }
 
     def __init__(self, data_home='./datasets/', dataset_names=None, load_all=False):
@@ -135,12 +140,16 @@ class Data(object):
             target = data[:,-1]
             data = data[:,0:-1]
         elif name == 'horse':
-            data = np.genfromtxt(self.data_home+'horse-colic.data.txt')
+            data = np.genfromtxt(self.data_home+'horse-colic.data')
             target = data[:,23]
             data = np.delete(data, 23, axis=1)
             #data = self.remove_columns_with_missing_values(data, 5)
             #data, target = self.remove_rows_with_missing_values(data, target)
             data = self.substitute_missing_values(data, fix_value=0, column_mean=False)
+        elif name == 'yeast':
+            data = np.genfromtxt(self.data_home+'yeast.data')
+            from IPython import embed
+            embed()
         else:
             raise Exception('Dataset {} not available'.format(name))
         return Dataset(name, data, target)
@@ -444,12 +453,12 @@ def test():
     dataset_names = ['abalone', 'balance-scale', 'credit-approval',
     'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis', 'horse',
     'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
-    'landsat-satellite', 'segment', 'spambase', 'breast-cancer-w']
+    'landsat-satellite', 'segment', 'spambase', 'breast-cancer-w', 'yeast']
 
     not_available_yet = [
                      'mushroom', 'landsat-satellite',
                      'libras-movement',
-                     'wdbc', 'breast-cancer-w', 'yeast']
+                     'wdbc', 'breast-cancer-w']
 
     valid_dataset_names = [name for name in dataset_names if name not in not_available_yet]
 
