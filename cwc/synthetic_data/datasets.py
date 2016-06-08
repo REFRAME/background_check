@@ -169,6 +169,13 @@ class Data(object):
                 data[:,i] = self.nominal_to_float(data[:,i])
             data = data.astype(float)
             data = self.substitute_missing_values(data, fix_value=0, column_mean=False)
+        elif name == 'landsat-satellite':
+            data_train = np.genfromtxt(self.data_home+'sat.trn')
+            data_test = np.genfromtxt(self.data_home+'sat.tst')
+
+            target = np.hstack((data_train[:,-1], data_test[:,-1]))
+            data = np.vstack((np.delete(data_train, -1, axis=1),
+                              np.delete(data_test, -1, axis=1)))
         else:
             return None
         return Dataset(name, data, target)
