@@ -169,6 +169,33 @@ class Data(object):
                 data[:,i] = self.nominal_to_float(data[:,i])
             data = data.astype(float)
             data = self.substitute_missing_values(data, fix_value=0, column_mean=False)
+        elif name == 'landsat-satellite':
+            data_train = np.genfromtxt(self.data_home+'sat.trn')
+            data_test = np.genfromtxt(self.data_home+'sat.tst')
+
+            target = np.hstack((data_train[:,-1], data_test[:,-1]))
+            data = np.vstack((np.delete(data_train, -1, axis=1),
+                              np.delete(data_test, -1, axis=1)))
+        elif name == 'yeast':
+            # TODO optimize not to read three times the file
+            target = np.genfromtxt(self.data_home+'yeast.data', usecols=9,
+                                   dtype=str)
+            data = np.genfromtxt(self.data_home+'yeast.data')[:,1:-1]
+            first_column = np.genfromtxt(self.data_home+'yeast.data', usecols=0,
+                                   dtype=str)
+            data = np.hstack((self.nominal_to_float(first_column).reshape(-1,1), data))
+        elif name == 'wdbc':
+            data = np.genfromtxt(self.data_home+'wdbc.data', delimiter=',')
+            data = np.delete(data, (0,1), axis=1)
+            target = np.genfromtxt(self.data_home+'wdbc.data', delimiter=',',
+                                   usecols=1, dtype=str)
+            data, target = self.remove_rows_with_missing_values(data, target)
+        elif name == 'wpbc':
+            data = np.genfromtxt(self.data_home+'wpbc.data', delimiter=',')
+            data = np.delete(data, (0,1), axis=1)
+            target = np.genfromtxt(self.data_home+'wpbc.data', delimiter=',',
+                                   usecols=1, dtype=str)
+            data, target = self.remove_rows_with_missing_values(data, target)
         else:
             return None
         return Dataset(name, data, target)
@@ -465,7 +492,7 @@ def test():
     datasets_Li2014 = ['abalone', 'balance-scale', 'credit-approval',
     'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis', 'horse',
     'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
-    'landsat-satellite', 'segment', 'spambase', 'breast-cancer-w', 'yeast']
+    'landsat-satellite', 'segment', 'spambase', 'wdbc', 'wpbc', 'yeast']
 
 
     dataset_names = datasets_Li2014
