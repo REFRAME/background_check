@@ -38,7 +38,7 @@ def main(dataset_names=None):
     if dataset_names == None:
         # All the datasets used in Li2014
         dataset_names = ['abalone', 'balance-scale', 'credit-approval',
-        'dermatology', 'german', 'heart-statlog', 'hepatitis', 'horse',
+        'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis', 'horse',
         'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
         'landsat-satellite', 'segment', 'spambase', 'wdbc', 'wpbc', 'yeast']
 
@@ -106,6 +106,7 @@ def main(dataset_names=None):
                 ensemble_li = Ensemble(n_ensemble=n_ensemble, lambd=1e-8)
                 ensemble_li.fit(x_train, y_train, xs=xs_bootstrap,
                                 ys=ys_bootstrap)
+
                 accuracy_li = ensemble_li.accuracy(x_test, y_test)
                 accuracies_li[mc * n_folds + test_fold] = accuracy_li
                 diary.add_entry('validation', ['dataset', name,
@@ -124,10 +125,10 @@ def main(dataset_names=None):
 if __name__ == '__main__':
     parser = OptionParser()
     parser.add_option("-d", "--dataset_names", dest="dataset_names",
-                              help="list of dataset names")
+                              help="list of dataset names coma separated")
 
     (options, args) = parser.parse_args()
-    if hasattr(options, 'dataset_names'):
+    if hasattr(options, 'dataset_names') and options.dataset_names is not None:
         dataset_names = options.dataset_names.split(',')
         main(dataset_names)
     else:

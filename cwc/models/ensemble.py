@@ -34,7 +34,7 @@ class Ensemble(object):
                 x_train = xs[c_index]
                 y_train = ys[c_index]
             c = copy.deepcopy(self._base_classifier)
-            c.fit(x_train, y_train)
+            c.fit(x_train, y_train, np.alen(np.unique(y)))
             self._classifiers.append(c)
         self.prune_ensemble(X, y)
         return xs, ys
