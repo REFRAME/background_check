@@ -140,19 +140,28 @@ class Data(object):
             target = data[:,-1]
             data = data[:,0:-1]
         elif name == 'horse':
-            data = np.genfromtxt(self.data_home+'horse-colic.data.txt')
+            data = np.genfromtxt(self.data_home+'horse-colic.data')
             target = data[:,23]
             data = np.delete(data, 23, axis=1)
             #data = self.remove_columns_with_missing_values(data, 5)
             #data, target = self.remove_rows_with_missing_values(data, target)
             data = self.substitute_missing_values(data, fix_value=0, column_mean=False)
+        elif name == 'libras-movement':
+            data = np.genfromtxt(self.data_home+'movement_libras.data',
+                    delimiter=',')
+            target = data[:,-1]
+            data = np.delete(data, -1, axis=1)
         else:
             raise Exception('Dataset {} not available'.format(name))
         return Dataset(name, data, target)
 
 
     def get_mldata_dataset(self, name):
-        mldata = fetch_mldata(Data.mldata_names[name], data_home=self.data_home)
+        try:
+            mldata = fetch_mldata(Data.mldata_names[name], data_home=self.data_home)
+        except Exception:
+            from IPython import embed
+            embed()
 
         if name=='ecoli':
             data = mldata.target.T
@@ -449,17 +458,19 @@ def test():
     dataset_names = ['abalone', 'balance-scale', 'credit-approval',
     'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis', 'horse',
     'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
-    'landsat-satellite', 'segment', 'spambase', 'breast-cancer-w']
+    'landsat-satellite', 'segment', 'spambase', 'breast-cancer-w', 'yeast']
 
-    not_available_yet = [
-                     'mushroom', 'landsat-satellite',
-                     'libras-movement',
-                     'wdbc', 'breast-cancer-w', 'yeast']
+    dataset_names = ['libras-movement']
 
-    valid_dataset_names = [name for name in dataset_names if name not in not_available_yet]
+    # not_available_yet = [
+    #                  'mushroom', 'landsat-satellite',
+    #                  'libras-movement',
+    #                  'wdbc', 'breast-cancer-w', 'yeast']
 
-    accuracies = test_datasets(valid_dataset_names)
-    for name in valid_dataset_names:
+    #valid_dataset_names = [name for name in dataset_names if name not in not_available_yet]
+
+    accuracies = test_datasets(dataset_names)
+    for name in dataset_names:
         print("{}. {} Acc = {:.2f}% +- {:.2f}".format(
                 np.where(np.array(dataset_names) == name)[0]+1,
                 name, accuracies[name].mean(), accuracies[name].std()))
