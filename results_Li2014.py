@@ -34,7 +34,7 @@ class MyDataFrame(pd.DataFrame):
         return self.append(dfaux, ignore_index=True)
 
 
-def main(dataset_names=None):
+def main(dataset_names=None, estimator_type = "gmm"):
     if dataset_names == None:
         # All the datasets used in Li2014
         dataset_names = ['abalone', 'balance-scale', 'credit-approval',
@@ -46,7 +46,6 @@ def main(dataset_names=None):
     mc_iterations = 20
     n_folds = 5
     n_ensemble = 100
-    estimator_type = "gmm"
 
     # Diary to save the partial and final results
     diary = Diary(name='results_Li2014', path='results', overwrite=False,
@@ -125,11 +124,15 @@ def main(dataset_names=None):
 if __name__ == '__main__':
     parser = OptionParser()
     parser.add_option("-d", "--dataset_names", dest="dataset_names",
-                              help="list of dataset names coma separated")
+            default=None, help="list of dataset names coma separated")
+    parser.add_option("-e", "--estimator", dest="estimator_type",
+            default='gmm', type='string', help="Estimator to use for the background check")
 
     (options, args) = parser.parse_args()
-    if hasattr(options, 'dataset_names') and options.dataset_names is not None:
+
+    if options.dataset_names is not None:
         dataset_names = options.dataset_names.split(',')
-        main(dataset_names)
     else:
-        main()
+        dataset_names = None
+
+    main(dataset_names, options.estimator_type)
