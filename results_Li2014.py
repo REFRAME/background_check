@@ -15,9 +15,6 @@ from cwc.models.ensemble import Ensemble
 import pandas as pd
 from diary import Diary
 
-import matplotlib.pyplot as plt
-plt.rcParams['figure.autolayout'] = True
-
 
 def separate_sets(x, y, test_fold_id, test_folds):
     x_test = x[test_folds == test_fold_id, :]
@@ -35,7 +32,7 @@ class MyDataFrame(pd.DataFrame):
 
 
 def main(dataset_names=None, estimator_type = "gmm"):
-    if dataset_names == None:
+    if dataset_names is None:
         # All the datasets used in Li2014
         dataset_names = ['abalone', 'balance-scale', 'credit-approval',
         'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis', 'horse',
@@ -83,7 +80,8 @@ def main(dataset_names=None, estimator_type = "gmm"):
 
                 sv = SVC(kernel='linear', probability=True)
                 if estimator_type == "svm":
-                    est = OneClassSVM(nu=0.1, gamma='auto')
+                    gamma = 1.0/x_train.shape[1]
+                    est = OneClassSVM(nu=0.1, gamma=gamma)
                 elif estimator_type == "gmm":
                     est = GMM(n_components=1)
                 classifier = ConfidentClassifier(classifier=sv,
