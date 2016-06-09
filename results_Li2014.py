@@ -15,9 +15,6 @@ from cwc.models.ensemble import Ensemble
 import pandas as pd
 from diary import Diary
 
-import matplotlib.pyplot as plt
-plt.rcParams['figure.autolayout'] = True
-
 
 def separate_sets(x, y, test_fold_id, test_folds):
     x_test = x[test_folds == test_fold_id, :]
@@ -35,18 +32,17 @@ class MyDataFrame(pd.DataFrame):
 
 
 def main(dataset_names=None):
-    if dataset_names == None:
+    if dataset_names is None:
         # All the datasets used in Li2014
         dataset_names = ['abalone', 'balance-scale', 'credit-approval',
         'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis', 'horse',
         'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
         'landsat-satellite', 'segment', 'spambase', 'wdbc', 'wpbc', 'yeast']
-
     seed_num = 42
     mc_iterations = 20
     n_folds = 5
     n_ensemble = 20
-    estimator_type = "gmm"
+    estimator_type = "svm"
 
     # Diary to save the partial and final results
     diary = Diary(name='results_Li2014', path='results', overwrite=False,
