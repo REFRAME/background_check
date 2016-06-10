@@ -13,8 +13,11 @@ class ConfidentClassifier(object):
         self._classifier = classifier
         self._bc = BackgroundCheck(estimator=estimator, mu=mu, m=m)
 
-    def fit(self, X, y):
-        self._classifier.fit(X, y)
+    def fit(self, X, y, total_classes=0):
+        if 'total_classes' in self._classifier.fit.__code__.co_varnames:
+            self._classifier.fit(X, y, total_classes=total_classes)
+        else:
+            self._classifier.fit(X, y)
         self._bc.fit(X)
 
     def predict_proba(self, X, mu=None, m=None):
@@ -32,3 +35,11 @@ class ConfidentClassifier(object):
     def predict(self, X, mu=None, m=None):
         posteriors = self.predict_proba(X, mu, m)
         return np.argmax(posteriors, axis=1)
+
+    @property
+    def n_classes(self):
+        return self._classifier._n_classes
+
+    @property
+    def classifier_type(self):
+        return type(self._classifier)

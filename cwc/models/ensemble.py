@@ -39,7 +39,7 @@ class Ensemble(object):
         self.prune_ensemble(X, y)
         return xs, ys
 
-    def prune_ensemble(self, X, y):
+    def prune_ensemble_old(self, X, y):
         predictions, confidences = self.get_weights(X, y)
         sorted_indices = np.argsort(1.0/(self._weights + 1.0))
         n_classes = np.alen(np.unique(y))
@@ -60,8 +60,29 @@ class Ensemble(object):
         self._weights = self._weights[sorted_indices[:final_j]]
         self._n_ensemble = final_j
 
+    def prune_ensemble(self, X, y):
+        predictions, confidences = self.get_weights(X, y)
+        sorted_indices = np.argsort(1.0/(self._weights + 1.0))
+        n_classes = np.alen(np.unique(y))
+        n = np.alen(X)
+        accuracies = np.zeros(self._n_ensemble)
+        votes = np.zeros((n, n_classes))
+        for c_index in np.arange(self._n_ensemble):
+            i = sorted_indices[c_index]
+            pred = predictions[:, i]
+            conf = confidences[:, i]
+            votes[range(n), pred] += conf * self._weights[i]
+            # if not np.all(votes == 0.0):
+            accuracies[c_index] = np.mean(votes.argmax(axis=1) == y)
+        final_j = np.argmax(accuracies)
+        self._classifiers = [self._classifiers[sorted_indices[i]] for i in
+                             range(final_j)]
+        self._weights = self._weights[sorted_indices[:final_j]]
+        self._n_ensemble = final_j
+
     def get_weights(self, X, y):
-        if self._base_classifier.classifier_type is not ConfidentClassifier:
+        if type(self._base_classifier) is not ConfidentClassifier\
+           and self._base_classifier.classifier_type is not ConfidentClassifier:
             return self.get_weights_li(X, y)
         else:
             return self.get_weights_bc(X, y)
@@ -98,7 +119,7 @@ class Ensemble(object):
         confidences = np.zeros((n, self._n_ensemble))
         checks = np.zeros(self._n_ensemble)
         for c_index, c in enumerate(self._classifiers):
-            res = c.predict(X)
+            res = get_predictions(c, X)
             predictions[:, c_index] = res[0]
             confidences[:, c_index] = res[1]
             correct = (predictions[:, c_index] == y).astype(int)
@@ -109,7 +130,7 @@ class Ensemble(object):
     def predict(self, X):
         n = np.alen(X)
         for c_index, c in enumerate(self._classifiers):
-            res = c.predict(X)
+            res = get_predictions(c, X)
             pred = res[0]
             conf = res[1]
             if c_index == 0:
@@ -120,6 +141,18 @@ class Ensemble(object):
     def accuracy(self, X, y):
         predictions = self.predict(X)
         return np.mean(predictions == y)
+
+
+def get_predictions(c, X):
+    if type(c) is OvoClassifier:
+        return c.predict(X)
+    elif type(c) is ConfidentClassifier:
+        n = np.alen(X)
+        probas = c.predict_proba(X)
+        predictions = np.argmax(probas[:, :-1], axis=1)
+        confidences = probas[range(n), predictions]
+        checks = 1.0 - probas[:, -1]
+        return [predictions, confidences, checks]
 
 
 def bootstrap(x, y, percent):
