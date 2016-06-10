@@ -74,7 +74,7 @@ def prune_curve(abst, acc):
 
 
 if __name__ == '__main__':
-    dataset_names = ['spambase']
+    dataset_names = ['tic-tac']
     data = Data(dataset_names=dataset_names)
     # plt.ion()
     np.random.seed(42)

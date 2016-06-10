@@ -70,12 +70,19 @@ class Ensemble(object):
         n = np.alen(y)
         predictions = np.zeros((n, self._n_ensemble))
         confidences = np.zeros((n, self._n_ensemble))
+        margins = np.zeros((n, self._n_ensemble))
         for c_index, c in enumerate(self._classifiers):
             res = c.predict(X)
             predictions[:, c_index] = res[0]
+            marg = (res[0] == y).astype(float)
+            marg[marg == 0] = -1
+            margins[:, c_index] = marg
             confidences[:, c_index] = res[1]
-        conf_pred = predictions * confidences
-        f = lambda w: np.sum(np.power(1.0 - y*(w*conf_pred).sum(axis=1),
+        # conf_pred = predictions * confidences
+        marg_pred = margins * confidences
+        # f = lambda w: np.sum(np.power(1.0 - y*(w*conf_pred).sum(axis=1),
+        #                               2.0)) + self._lambda*np.linalg.norm(w)
+        f = lambda w: np.sum(np.power(1.0 - (w*marg_pred).sum(axis=1),
                                       2.0)) + self._lambda*np.linalg.norm(w)
         w0 = np.ones(self._n_ensemble)/self._n_ensemble
         cons = ({'type': 'eq', 'fun': lambda w:  1.0 - np.sum(w)})
