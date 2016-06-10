@@ -31,18 +31,14 @@ class MyDataFrame(pd.DataFrame):
         return self.append(dfaux, ignore_index=True)
 
 
-def main(dataset_names=None, estimator_type="gmm"):
+def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
+        n_ensemble=100, seed_num=42):
     if dataset_names is None:
         # All the datasets used in Li2014
         dataset_names = ['abalone', 'balance-scale', 'credit-approval',
         'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis', 'horse',
         'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
         'landsat-satellite', 'segment', 'spambase', 'wdbc', 'wpbc', 'yeast']
-
-    seed_num = 42
-    mc_iterations = 20
-    n_folds = 5
-    n_ensemble = 100
 
     # Diary to save the partial and final results
     diary = Diary(name='results_Li2014', path='results', overwrite=False,
@@ -121,10 +117,24 @@ def main(dataset_names=None, estimator_type="gmm"):
 
 if __name__ == '__main__':
     parser = OptionParser()
-    parser.add_option("-d", "--dataset_names", dest="dataset_names",
+    parser.add_option("-d", "--dataset-names", dest="dataset_names",
             default=None, help="list of dataset names coma separated")
     parser.add_option("-e", "--estimator", dest="estimator_type",
-            default='gmm', type='string', help="Estimator to use for the background check")
+            default='gmm', type='string',
+            help="Estimator to use for the background check")
+    parser.add_option("-m", "--mc-iterations", dest="mc_iterations",
+            default=20, type=int,
+            help="Number of Monte Carlo iterations")
+    parser.add_option("-f", "--n-folds", dest="n_folds",
+            default=5, type=int,
+            help="Number of folds for the cross-validation")
+    parser.add_option("-n", "--n-ensemble", dest="n_ensemble",
+            default=100, type=int,
+            help="Number of ensemble models to aggregate")
+    parser.add_option("-s", "--seed-num", dest="seed_num",
+            default=42, type=int,
+            help="Seed number for the random number generator")
+
 
     (options, args) = parser.parse_args()
 
@@ -133,4 +143,5 @@ if __name__ == '__main__':
     else:
         dataset_names = None
 
-    main(dataset_names, options.estimator_type)
+    main(dataset_names, options.estimator_type, options.mc_iterations,
+            options.n_folds, options.n_ensemble, options.seed_num)
