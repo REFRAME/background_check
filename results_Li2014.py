@@ -80,7 +80,8 @@ def main(dataset_names=None, estimator_type="gmm"):
 
                 sv = SVC(kernel='linear', probability=True)
                 if estimator_type == "svm":
-                    est = OneClassSVM(nu=0.1, gamma='auto')
+                    gamma = 1.0/x_train.shape[1]
+                    est = OneClassSVM(nu=0.1, gamma=gamma)
                 elif estimator_type == "gmm":
                     est = GMM(n_components=1)
                 classifier = ConfidentClassifier(classifier=sv,
