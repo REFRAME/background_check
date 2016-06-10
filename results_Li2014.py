@@ -11,6 +11,7 @@ from cwc.synthetic_data.datasets import Data
 from cwc.models.ovo_classifier import OvoClassifier
 from cwc.models.confident_classifier import ConfidentClassifier
 from cwc.models.ensemble import Ensemble
+from cwc.models.density_estimators import MyMultivariateNormal
 
 import pandas as pd
 from diary import Diary
@@ -100,12 +101,20 @@ def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
                     est = OneClassSVM(nu=0.1, gamma=gamma)
                 elif estimator_type == "gmm":
                     est = GMM(n_components=1)
-                classifier = ConfidentClassifier(classifier=sv,
+                elif estimator_type == "mymvn":
+                    est = MyMultivariateNormal()
+                ovo = OvoClassifier(base_classifier=sv)
+                classifier = ConfidentClassifier(classifier=ovo,
                                                  estimator=est, mu=0.5,
                                                  m=0.5)
-                ovo = OvoClassifier(base_classifier=classifier)
-                ensemble = Ensemble(base_classifier=ovo,
+                ensemble = Ensemble(base_classifier=classifier,
                                     n_ensemble=n_ensemble)
+                # classifier = ConfidentClassifier(classifier=sv,
+                #                                  estimator=est, mu=0.5,
+                #                                  m=0.5)
+                # ovo = OvoClassifier(base_classifier=classifier)
+                # ensemble = Ensemble(base_classifier=ovo,
+                #                     n_ensemble=n_ensemble)
                 xs_bootstrap, ys_bootstrap = ensemble.fit(x_train, y_train)
                 accuracy = ensemble.accuracy(x_test, y_test)
                 accuracies[mc * n_folds + test_fold] = accuracy
