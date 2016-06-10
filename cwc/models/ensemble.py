@@ -74,7 +74,7 @@ class Ensemble(object):
             votes[range(n), pred] += conf * self._weights[i]
             # if not np.all(votes == 0.0):
             accuracies[c_index] = np.mean(votes.argmax(axis=1) == y)
-        final_j = np.argmax(accuracies)
+        final_j = np.argmax(accuracies) + 1
         self._classifiers = [self._classifiers[sorted_indices[i]] for i in
                              range(final_j)]
         self._weights = self._weights[sorted_indices[:final_j]]
@@ -122,8 +122,7 @@ class Ensemble(object):
             res = get_predictions(c, X)
             predictions[:, c_index] = res[0]
             confidences[:, c_index] = res[1]
-            correct = (predictions[:, c_index] == y).astype(int)
-            checks[c_index] = np.mean(correct*res[2])
+            checks[c_index] = np.mean(res[2])
         self._weights = checks / np.sum(checks)
         return predictions.astype(int), confidences
 
