@@ -105,7 +105,7 @@ class BackgroundCheck(object):
             return self._estimator.decision_function(X).reshape(-1)
 
 
-if __name__ == "__main__":
+def test():
     np.random.seed(42)
     dataset = datasets.load_iris()
 
@@ -125,3 +125,7 @@ if __name__ == "__main__":
     bc_sv = BackgroundCheck(estimator=sv, mu=0.0, m=1.0)
     bc_sv.fit(dataset.data)
     print bc_sv.predict_proba(test_set)
+
+
+if __name__ == "__main__":
+    pass
