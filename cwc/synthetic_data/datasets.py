@@ -56,13 +56,13 @@ class Dataset(object):
         print self
 
     def __str__(self):
-        return('Name = {}\n'
-               'Data shape = {}\n'
-               'Target shape = {}\n'
-               'Target classes = {}\n'
-               'Target labels = {}\n').format(self.name, self.data.shape,
-                                              self.target.shape, self.classes,
-                                              self.names)
+        return("Name = {}\n"
+               "Data shape = {}\n"
+               "Target shape = {}\n"
+               "Target classes = {}\n"
+               "Target labels = {}").format(self.name, self.data.shape,
+                                            self.target.shape, self.classes,
+                                            self.names)
 
 
 class Data(object):
@@ -319,11 +319,11 @@ class Data(object):
                               mldata['target'].T, mldata['double3'].T))
         elif name=='vowel':
             target = mldata['Class'].T
-            data = np.hstack((
-                        self.nominal_to_float(mldata['target'].reshape(-1,1)),
-                        mldata['double0'].T,
-                        self.nominal_to_float(mldata['data'].reshape(-1,1)),
-                        self.nominal_to_float(mldata['Sex'].T.reshape(-1,1))))
+            # We are not using the extra features implicit in the dataset:
+            # target: {training, test}
+            # data: Name of the participant
+            # sex: sex of the participant
+            data = mldata['double0'].T
         elif name=='zoo':
             target = mldata['type'].reshape(-1,1)
             feature_names = ['aquatic', 'domestic', 'eggs', 'backbone',
