@@ -122,8 +122,7 @@ class Ensemble(object):
             res = get_predictions(c, X)
             predictions[:, c_index] = res[0]
             confidences[:, c_index] = res[1]
-            correct = (predictions[:, c_index] == y).astype(int)
-            checks[c_index] = np.mean(correct*res[2])
+            checks[c_index] = np.mean(res[2])
         self._weights = checks / np.sum(checks)
         return predictions.astype(int), confidences
 
