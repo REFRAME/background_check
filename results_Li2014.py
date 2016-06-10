@@ -35,10 +35,30 @@ def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
         n_ensemble=100, seed_num=42):
     if dataset_names is None:
         # All the datasets used in Li2014
-        dataset_names = ['abalone', 'balance-scale', 'credit-approval',
+        datasets_li2014 = ['abalone', 'balance-scale', 'credit-approval',
         'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis', 'horse',
         'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
         'landsat-satellite', 'segment', 'spambase', 'wdbc', 'wpbc', 'yeast']
+
+        #datasets_hempstalk2008 = ['diabetes', 'ecoli', 'glass', 'heart-statlog',
+        #             'ionosphere', 'iris', 'letter', 'mfeat-karhunen',
+        #             'mfeat-morphological', 'mfeat-zernike', 'optdigits',
+        #             'pendigits', 'sonar', 'vehicle', 'waveform-5000']
+
+        #datasets_others = [ 'diabetes', 'ecoli', 'glass', 'heart-statlog',
+        #        'ionosphere', 'iris', 'letter', 'mfeat-karhunen',
+        #        'mfeat-morphological', 'mfeat-zernike', 'optdigits',
+        #        'pendigits', 'sonar', 'vehicle', 'waveform-5000',
+        #        'scene-classification', 'tic-tac', 'autos', 'car',
+        #        'cleveland', 'dermatology', 'flare', 'page-blocks', 'segment',
+        #        'shuttle', 'vowel', 'zoo', 'abalone', 'balance-scale',
+        #        'credit-approval', 'german', 'hepatitis', 'lung-cancer']
+
+        # Datasets that we can add but need to be reduced
+        datasets_to_add = ['MNIST']
+
+        dataset_names = list(set(datasets_li2014 + datasets_hempstalk2008 +
+            datasets_others))
 
     # Diary to save the partial and final results
     diary = Diary(name='results_Li2014', path='results', overwrite=False,
@@ -115,7 +135,7 @@ def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
     diary.add_entry('summary', [table])
 
 
-if __name__ == '__main__':
+def parse_arguments():
     parser = OptionParser()
     parser.add_option("-d", "--dataset-names", dest="dataset_names",
             default=None, help="list of dataset names coma separated")
@@ -135,8 +155,10 @@ if __name__ == '__main__':
             default=42, type=int,
             help="Seed number for the random number generator")
 
+    return parser.parse_args()
 
-    (options, args) = parser.parse_args()
+if __name__ == '__main__':
+    (options, args) = parse_arguments()
 
     if options.dataset_names is not None:
         dataset_names = options.dataset_names.split(',')
