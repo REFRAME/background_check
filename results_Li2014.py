@@ -1,4 +1,5 @@
 from __future__ import division
+import os
 from optparse import OptionParser
 import numpy as np
 
@@ -32,6 +33,44 @@ class MyDataFrame(pd.DataFrame):
         return self.append(dfaux, ignore_index=True)
 
 
+def export_datasets_description_to_latex(data, path='', index=False):
+    df_data = MyDataFrame(columns=['Name', 'Samples', 'Features', 'Classes'])
+    dataset_names = data.datasets.keys()
+    dataset_names.sort()
+    for name in dataset_names:
+        dataset = data.datasets[name]
+        df_data = df_data.append_rows([[name, dataset.data.shape[0],
+                             dataset.data.shape[1], len(dataset.classes)]])
+    def float_to_int_string(x):
+        return '%1.0f' % x
+
+    df_data.index += 1
+    df_data.to_latex(os.path.join(path,'datasets.tex'),
+                     float_format=float_to_int_string , index=index)
+
+
+def export_summary(df, diary):
+    def float_100_to_string(x):
+        return '%2.2f' % (100*x)
+
+    df = df.convert_objects(convert_numeric=True)
+    table = df.pivot_table(values=['acc'], index=['dataset'],
+                                  columns=['method'], aggfunc=[np.mean])
+
+    table.to_latex(os.path.join(diary.path,'acc.tex'),
+                   float_format=float_100_to_string)
+
+    table = df.pivot_table(values=['acc'], index=['dataset'],
+                                  columns=['method'], aggfunc=[np.mean,
+                                      np.std])
+
+    table.to_latex(os.path.join(diary.path,'acc_std.tex'),
+                   float_format=float_100_to_string)
+
+    diary.add_entry('summary', [table])
+
+
+
 def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
         n_ensemble=100, seed_num=42):
     if dataset_names is None:
@@ -41,19 +80,19 @@ def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
         'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
         'landsat-satellite', 'segment', 'spambase', 'wdbc', 'wpbc', 'yeast']
 
-        #datasets_hempstalk2008 = ['diabetes', 'ecoli', 'glass', 'heart-statlog',
-        #             'ionosphere', 'iris', 'letter', 'mfeat-karhunen',
-        #             'mfeat-morphological', 'mfeat-zernike', 'optdigits',
-        #             'pendigits', 'sonar', 'vehicle', 'waveform-5000']
+        datasets_hempstalk2008 = ['diabetes', 'ecoli', 'glass', 'heart-statlog',
+                     'ionosphere', 'iris', 'letter', 'mfeat-karhunen',
+                     'mfeat-morphological', 'mfeat-zernike', 'optdigits',
+                     'pendigits', 'sonar', 'vehicle', 'waveform-5000']
 
-        #datasets_others = [ 'diabetes', 'ecoli', 'glass', 'heart-statlog',
-        #        'ionosphere', 'iris', 'letter', 'mfeat-karhunen',
-        #        'mfeat-morphological', 'mfeat-zernike', 'optdigits',
-        #        'pendigits', 'sonar', 'vehicle', 'waveform-5000',
-        #        'scene-classification', 'tic-tac', 'autos', 'car',
-        #        'cleveland', 'dermatology', 'flare', 'page-blocks', 'segment',
-        #        'shuttle', 'vowel', 'zoo', 'abalone', 'balance-scale',
-        #        'credit-approval', 'german', 'hepatitis', 'lung-cancer']
+        datasets_others = [ 'diabetes', 'ecoli', 'glass', 'heart-statlog',
+                'ionosphere', 'iris', 'letter', 'mfeat-karhunen',
+                'mfeat-morphological', 'mfeat-zernike', 'optdigits',
+                'pendigits', 'sonar', 'vehicle', 'waveform-5000',
+                'scene-classification', 'tic-tac', 'autos', 'car',
+                'cleveland', 'dermatology', 'flare', 'page-blocks', 'segment',
+                'shuttle', 'vowel', 'zoo', 'abalone', 'balance-scale',
+                'credit-approval', 'german', 'hepatitis', 'lung-cancer']
 
         # Datasets that we can add but need to be reduced
         datasets_to_add = ['MNIST']
@@ -81,6 +120,8 @@ def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
                                    n_ensemble,
                                    'estimator_type', estimator_type])
     data = Data(dataset_names=dataset_names)
+    export_datasets_description_to_latex(data, path=diary.path)
+
     for i, (name, dataset) in enumerate(data.datasets.iteritems()):
         np.random.seed(seed_num)
         dataset.print_summary()
@@ -138,10 +179,7 @@ def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
                                                'acc', accuracy_li])
                 df = df.append_rows([[name, 'Li2014', mc, test_fold, accuracy_li]])
 
-    df = df.convert_objects(convert_numeric=True)
-    table = df.pivot_table(values=['acc'], index=['dataset'],
-                                  columns=['method'], aggfunc=[np.mean, np.std])
-    diary.add_entry('summary', [table])
+    export_summary(df, diary)
 
 
 def parse_arguments():
