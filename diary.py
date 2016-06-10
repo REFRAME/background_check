@@ -8,6 +8,7 @@ save all the information and images in a structured and sorted manner.
 __docformat__ = 'restructedtext en'
 import os
 import sys
+import errno
 import csv
 import datetime
 
@@ -70,18 +71,26 @@ class Diary(object):
         self.notebooks[name] = Notebook(name, self.path, **kwargs)
 
     def _create_all_paths(self):
-        path = self.path
+        original_path = self.path
+        created = False
         i = 0
-        while self.overwrite == False and os.path.exists(self.path):
-            self.path = "{}_{}".format(path,i)
-            i +=1
+        while not created:
+            while self.overwrite == False and os.path.exists(self.path):
+                self.path = "{}_{}".format(original_path,i)
+                i +=1
 
-        self.path_images = os.path.join(self.path, 'images')
-        self.path_figures = os.path.join(self.path, 'figures')
-        all_paths = [self.path, self.path_images, self.path_figures]
-        for path in all_paths:
-            if not os.path.exists(path):
-                os.makedirs(path)
+            self.path_images = os.path.join(self.path, 'images')
+            self.path_figures = os.path.join(self.path, 'figures')
+            all_paths = [self.path, self.path_images, self.path_figures]
+            try:
+                for actual_path in all_paths:
+                    if not os.path.exists(actual_path):
+                            os.makedirs(actual_path)
+                            os.makedirs(actual_path)
+                created = True
+            except OSError as exception:
+                if exception.errno != errno.EEXIST:
+                    raise
         return all_paths
 
     def _save_description(self):
