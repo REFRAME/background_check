@@ -3,6 +3,8 @@ from ..synthetic_data import reject
 import numpy as np
 from scipy.stats import multivariate_normal
 from sklearn.mixture import GMM
+from sklearn.neighbors import KernelDensity
+
 
 class DensityEstimators(object):
     def __init__(self):
@@ -185,4 +187,28 @@ class MultivariateNormal(object):
 
     def sample(self, n):
         return np.random.multivariate_normal(self.mu, self.sigma, n)
+
+
+class MyMultivariateKernelDensity(object):
+    def __init__(self, kernel='gaussian', bandwidth=1.0):
+        self._kernel = kernel
+        self._bandwidth = bandwidth
+        self._estimators = []
+
+    def fit(self, X):
+        p = X.shape[1]
+        for feature in np.arange(p):
+            kd = KernelDensity(kernel=self._kernel, bandwidth=self._bandwidth)
+            kd.fit(X[:, feature].reshape(-1, 1))
+            self._estimators.append(kd)
+
+    def score(self, X):
+        p = len(self._estimators)
+        scores = np.zeros((np.alen(X), p))
+        for feature in np.arange(p):
+            s = self._estimators[feature].score_samples(
+                X[:, feature].reshape(-1, 1))
+            scores[:, feature] = s
+        return scores.sum(axis=1)
+
 
