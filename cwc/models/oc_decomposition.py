@@ -29,7 +29,7 @@ class OcDecomposition(object):
     def score(self, X):
         if type(self._base_estimator) is BackgroundCheck:
             return self.score_bc(X)
-        elif self._normalization == "O-norm":
+        elif self._normalization in ["O-norm", "T-norm"]:
             return self.score_dens(X) + 1e-8
 
     def score_dens(self, X):
@@ -57,6 +57,13 @@ class OcDecomposition(object):
             return self.predict_o_norm(scores)
 
     def predict_o_norm(self, scores):
+        scores /= self._thresholds
+        max_scores = scores.max(axis=1)
+        predictions = scores.argmax(axis=1)
+        predictions[max_scores <= 1] = len(self._estimators)
+        return predictions
+
+    def predict_t_norm(self, scores):
         scores /= self._thresholds
         max_scores = scores.max(axis=1)
         predictions = scores.argmax(axis=1)

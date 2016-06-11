@@ -51,13 +51,14 @@ class MyDataFrame(pd.DataFrame):
 
 def main(dataset_names=None):
     if dataset_names is None:
-        dataset_names = ['hepatitis', 'ionosphere', 'vowel']
+        dataset_names = ['glass', 'ionosphere', 'hepatitis', 'vowel']
 
     seed_num = 42
     mc_iterations = 5
     n_folds = 2
     estimator_type = "kernel"
-    bandwiths = {'ionosphere': 0.0398, 'hepatitis': 0.3092, 'vowel': 0.0375}
+    bandwidths = {'glass': 0.2615, 'ionosphere': 0.0398, 'hepatitis': 0.3092,
+                  'vowel': 0.0375}
     # ionosphere -> bandwidth = 0.0398, 0.2
     # hepatitis -> bandwidth = 0.3092, 0.738
     # vowel -> bandwith = 0.0375
@@ -88,7 +89,7 @@ def main(dataset_names=None):
         diary.add_entry('datasets', [dataset.__str__()])
         accuracies = np.zeros(mc_iterations * n_folds)
         accuracies_tax = np.zeros(mc_iterations * n_folds)
-        bandwidth = bandwiths[name]
+        bandwidth = bandwidths[name]
         for mc in np.arange(mc_iterations):
             skf = StratifiedKFold(dataset.target, n_folds=n_folds,
                                   shuffle=True)
