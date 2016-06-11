@@ -346,7 +346,8 @@ class Data(object):
             target = mldata['Class'].T
             data = self.mldata_to_numeric_matrix(mldata, 155,
                                                  exclude=['Class'])
-            data, target = self.remove_rows_with_missing_values(data, target)
+            #data, target = self.remove_rows_with_missing_values(data, target)
+            data = self.substitute_missing_values(data, fix_value=0, column_mean=False)
         elif name=='lung-cancer':
             target = mldata['Class'].T
             data = self.mldata_to_numeric_matrix(mldata, 96,
