@@ -89,7 +89,10 @@ def main(dataset_names=None):
         diary.add_entry('datasets', [dataset.__str__()])
         accuracies = np.zeros(mc_iterations * n_folds)
         accuracies_tax = np.zeros(mc_iterations * n_folds)
-        bandwidth = bandwidths[name]
+        if name in bandwidths:
+            bandwidth = bandwidths[name]
+        else:
+            bandwidth = np.mean(bandwidths.values())
         for mc in np.arange(mc_iterations):
             skf = StratifiedKFold(dataset.target, n_folds=n_folds,
                                   shuffle=True)
@@ -106,6 +109,12 @@ def main(dataset_names=None):
                     x_train = x_train[y_train <= 5]
                     y_train = y_train[y_train <= 5]
                     y_test[y_test > 5] = 6
+                elif dataset.n_classes > 2:
+                    x_train = x_train[y_train <= dataset.n_classes/2]
+                    y_train = y_train[y_train <= dataset.n_classes/2]
+                    y_test[y_test > dataset.n_classes/2] = dataset.n_classes+1
+                else:
+                    continue
 
                 if estimator_type == "svm":
                     est = OneClassSVM(nu=0.5, gamma=1.0/x_train.shape[1])
