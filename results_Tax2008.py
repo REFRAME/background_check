@@ -49,14 +49,11 @@ class MyDataFrame(pd.DataFrame):
         return self.append(dfaux, ignore_index=True)
 
 
-def main(dataset_names=None):
+def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
+        n_folds=10, seed_num=42):
     if dataset_names is None:
         dataset_names = ['glass','hepatitis','ionosphere','vowel']
 
-    seed_num = 42
-    mc_iterations = 1
-    n_folds = 10
-    estimator_type = "kernel"
     # bandwidths = {'glass': 0.2615, 'ionosphere': 0.0398, 'hepatitis': 0.3092,
     #               'vowel': 0.0375}  # This is for mc=5 and n_folds=2
 
@@ -178,14 +175,32 @@ def main(dataset_names=None):
     diary.add_entry('summary', [table])
 
 
-if __name__ == '__main__':
+def parse_arguments():
     parser = OptionParser()
-    parser.add_option("-d", "--dataset_names", dest="dataset_names",
-                              help="list of dataset names")
+    parser.add_option("-d", "--dataset-names", dest="dataset_names",
+            default=None, help="list of dataset names coma separated")
+    parser.add_option("-e", "--estimator", dest="estimator_type",
+            default='gmm', type='string',
+            help="Estimator to use for the background check")
+    parser.add_option("-m", "--mc-iterations", dest="mc_iterations",
+            default=20, type=int,
+            help="Number of Monte Carlo iterations")
+    parser.add_option("-f", "--n-folds", dest="n_folds",
+            default=5, type=int,
+            help="Number of folds for the cross-validation")
+    parser.add_option("-s", "--seed-num", dest="seed_num",
+            default=42, type=int,
+            help="Seed number for the random number generator")
 
-    (options, args) = parser.parse_args()
+    return parser.parse_args()
+
+if __name__ == '__main__':
+    (options, args) = parse_arguments()
+
     if options.dataset_names is not None:
         dataset_names = options.dataset_names.split(',')
-        main(dataset_names)
     else:
-        main()
+        dataset_names = None
+
+    main(dataset_names, options.estimator_type, options.mc_iterations,
+            options.n_folds, options.seed_num)
