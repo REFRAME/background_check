@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.svm import SVC
 from scipy.special import expit
 import copy
+from scipy.stats import norm
 
 from background_check import BackgroundCheck
 
@@ -18,7 +19,7 @@ class OcDecomposition(object):
         self._priors = []
         self._means = []
 
-    def fit(self, X, y, threshold_percentile=10):
+    def fit(self, X, y, threshold_percentile=10, mus=None, ms=None):
         classes = np.unique(y)
         n_classes = np.alen(classes)
         class_count = np.bincount(y)
@@ -27,13 +28,13 @@ class OcDecomposition(object):
             c = copy.deepcopy(self._base_estimator)
             c.fit(X[y == c_index])
             self._estimators.append(c)
-        scores = self.score(X)
+        scores = self.score(X, mus=mus, ms=ms)
         self._thresholds = np.percentile(scores, threshold_percentile, axis=0)
         self._means = scores.mean(axis=0)
 
-    def score(self, X):
+    def score(self, X, mus=None, ms=None):
         if type(self._base_estimator) is BackgroundCheck:
-            return self.score_bc(X)
+            return self.score_bc(X, mus=mus, ms=ms)
         elif self._normalization in ["O-norm", "T-norm"]:
             return self.score_dens(X) + 1e-8    # this value is added to avoid
                                                 # having 0-valued thresholds,
@@ -44,20 +45,26 @@ class OcDecomposition(object):
         scores = np.zeros((n, len(self._estimators)))
         for i, estimator in enumerate(self._estimators):
             s = np.exp(estimator.score(X))
-            if np.alen(s) == 1:
-                s = np.exp(estimator.score_samples(X))
             scores[range(n), i] = s
         return scores
 
-    def score_bc(self, X):
+    def score_bc(self, X, mus=None, ms=None):
         n = np.alen(X)
         probas = np.zeros((n, len(self._estimators)))
         for i, estimator in enumerate(self._estimators):
-            probas[range(n), i] = estimator.predict_proba(X)[:, 1]
+            if mus is None:
+                mu = None
+            else:
+                mu = mus[i]
+            if ms is None:
+                m = None
+            else:
+                m = ms[i]
+            probas[range(n), i] = estimator.predict_proba(X, mu=mu, m=m)[:, 1]
         return probas
 
-    def predict(self, X):
-        scores = self.score(X)
+    def predict(self, X, mus=None, ms=None):
+        scores = self.score(X, mus=mus, ms=ms)
         if type(self._base_estimator) is BackgroundCheck:
             return self.predict_bc(scores)
         elif self._normalization == "O-norm":
@@ -93,8 +100,8 @@ class OcDecomposition(object):
         predictions[total_reject] = len(self._estimators)
         return predictions
 
-    def accuracy(self, X, y):
-        predictions = self.predict(X)
+    def accuracy(self, X, y, mus=None, ms=None):
+        predictions = self.predict(X, mus=mus, ms=ms)
         return np.mean(predictions == y)
 
     @property

@@ -51,7 +51,7 @@ class MyDataFrame(pd.DataFrame):
 
 def main(dataset_names=None):
     if dataset_names is None:
-        dataset_names = ['glass', 'hepatitis', 'ionosphere', 'vowel']
+        dataset_names = ['glass','hepatitis','ionosphere','vowel']
 
     seed_num = 42
     mc_iterations = 1
@@ -119,7 +119,7 @@ def main(dataset_names=None):
                     continue
 
                 if estimator_type == "svm":
-                    est = OneClassSVM(nu=0.5, gamma=1.0/x_train.shape[1])
+                    est = OneClassSVM(nu=0.1, gamma=1.0/x_train.shape[1])
                 elif estimator_type == "gmm":
                     est = GMM(n_components=1)
                 elif estimator_type == "kernel":
@@ -128,8 +128,12 @@ def main(dataset_names=None):
 
                 bc = BackgroundCheck(estimator=est, mu=0.0, m=1.0)
                 oc = OcDecomposition(base_estimator=bc)
-                oc.fit(x_train, y_train)
-                accuracy = oc.accuracy(x_test, y_test)
+                mus = None
+                ms = None
+                # mus = [0.05, 0.1, 0.2, 0.0, 0.0, 0.1]
+                # ms = [1.0, 1.0, 1.0, 1.0, 1.0, 0.1]
+                oc.fit(x_train, y_train, mus=mus, ms=ms)
+                accuracy = oc.accuracy(x_test, y_test, mus=mus, ms=ms)
                 accuracies[mc * n_folds + test_fold] = accuracy
                 diary.add_entry('validation', ['dataset', name,
                                                'method', 'our',
