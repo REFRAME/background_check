@@ -51,17 +51,18 @@ class MyDataFrame(pd.DataFrame):
 
 def main(dataset_names=None):
     if dataset_names is None:
-        dataset_names = ['glass', 'ionosphere', 'hepatitis', 'vowel']
+        dataset_names = ['glass', 'hepatitis', 'ionosphere', 'vowel']
 
     seed_num = 42
-    mc_iterations = 5
-    n_folds = 2
+    mc_iterations = 1
+    n_folds = 10
     estimator_type = "kernel"
-    bandwidths = {'glass': 0.2615, 'ionosphere': 0.0398, 'hepatitis': 0.3092,
-                  'vowel': 0.0375}
-    # ionosphere -> bandwidth = 0.0398, 0.2
-    # hepatitis -> bandwidth = 0.3092, 0.738
-    # vowel -> bandwith = 0.0375
+    # bandwidths = {'glass': 0.2615, 'ionosphere': 0.0398, 'hepatitis': 0.3092,
+    #               'vowel': 0.0375}  # This is for mc=5 and n_folds=2
+
+    bandwidths = {'glass': 0.2695, 'ionosphere': 0.019, 'hepatitis': 0.301,
+                  'vowel': 0.0565}  # This is for mc=1 and n_folds=10,
+                                    # results don't perfectly match, though
 
     # Diary to save the partial and final results
     diary = Diary(name='results_Tax2008', path='results',
@@ -88,7 +89,8 @@ def main(dataset_names=None):
         dataset.print_summary()
         diary.add_entry('datasets', [dataset.__str__()])
         accuracies = np.zeros(mc_iterations * n_folds)
-        accuracies_tax = np.zeros(mc_iterations * n_folds)
+        accuracies_o_norm = np.zeros(mc_iterations * n_folds)
+        accuracies_t_norm = np.zeros(mc_iterations * n_folds)
         if name in bandwidths:
             bandwidth = bandwidths[name]
         else:
@@ -135,20 +137,36 @@ def main(dataset_names=None):
                                                'test_fold', test_fold,
                                                'acc', accuracy])
                 df = df.append_rows([[name, 'our', mc, test_fold, accuracy]])
+
                 e = MyMultivariateKernelDensity(kernel='gaussian',
                                                 bandwidth=bandwidth)
-                oc_tax = OcDecomposition(base_estimator=e,
-                                         normalization="O-norm")
-                oc_tax.fit(x_train, y_train)
-                accuracy_tax = oc_tax.accuracy(x_test, y_test)
-                accuracies_tax[mc * n_folds + test_fold] = accuracy_tax
+                oc_o_norm = OcDecomposition(base_estimator=e,
+                                            normalization="O-norm")
+                oc_o_norm.fit(x_train, y_train)
+                accuracy_o_norm = oc_o_norm.accuracy(x_test, y_test)
+                accuracies_o_norm[mc * n_folds + test_fold] = accuracy_o_norm
                 diary.add_entry('validation', ['dataset', name,
-                                               'method', 'Tax2008',
+                                               'method', 'O-norm',
                                                'mc', mc,
                                                'test_fold', test_fold,
-                                               'acc', accuracy_tax])
-                df = df.append_rows([[name, 'Tax2008', mc, test_fold,
-                                      accuracy_tax]])
+                                               'acc', accuracy_o_norm])
+                df = df.append_rows([[name, 'O-norm', mc, test_fold,
+                                      accuracy_o_norm]])
+
+                e = MyMultivariateKernelDensity(kernel='gaussian',
+                                                bandwidth=bandwidth)
+                oc_t_norm = OcDecomposition(base_estimator=e,
+                                            normalization="T-norm")
+                oc_t_norm.fit(x_train, y_train)
+                accuracy_t_norm = oc_t_norm.accuracy(x_test, y_test)
+                accuracies_t_norm[mc * n_folds + test_fold] = accuracy_t_norm
+                diary.add_entry('validation', ['dataset', name,
+                                               'method', 'T-norm',
+                                               'mc', mc,
+                                               'test_fold', test_fold,
+                                               'acc', accuracy_t_norm])
+                df = df.append_rows([[name, 'T-norm', mc, test_fold,
+                                      accuracy_t_norm]])
 
     df = df.convert_objects(convert_numeric=True)
     table = df.pivot_table(values=['acc'], index=['dataset'],
