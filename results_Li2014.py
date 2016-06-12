@@ -142,6 +142,8 @@ def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
                     est = OneClassSVM(nu=0.1, gamma=gamma)
                 elif estimator_type == "gmm":
                     est = GMM(n_components=1)
+                elif estimator_type == "gmm3":
+                    est = GMM(n_components=3)
                 elif estimator_type == "mymvn":
                     est = MyMultivariateNormal()
                 ovo = OvoClassifier(base_classifier=sv)

@@ -55,6 +55,10 @@ class Dataset(object):
     def print_summary(self):
         print self
 
+    @property
+    def n_classes(self):
+        return len(self._classes)
+
     def __str__(self):
         return("Name = {}\n"
                "Data shape = {}\n"
@@ -99,7 +103,7 @@ class Data(object):
                     'credit-approval':'uci-20070111 credit-a',
                     'german':'German IDA',
                     'hepatitis':'uci-20070111 hepatitis',
-                    'lung-cancer':'Lung Cancer (Michigan)',
+                    'lung-cancer':'Lung Cancer (Michigan)'
                     }
 
     mldata_not_working = {
@@ -116,7 +120,8 @@ class Data(object):
                     'lymphography':'',
                     # HTTP Error 500 in mldata.org
                     'satimage':'satimage',
-                    'nursery':'uci-20070111 nursery'
+                    'nursery':'uci-20070111 nursery',
+                    'hypothyroid':'uci-20070111 hypothyroid'
             }
 
     def __init__(self, data_home='./datasets/', dataset_names=None, load_all=False):
@@ -494,6 +499,7 @@ def test():
 
 
     dataset_names = datasets_Li2014
+    dataset_names = ['hypothyroid']
 
     accuracies = test_datasets(dataset_names)
     for i, name in enumerate(dataset_names):

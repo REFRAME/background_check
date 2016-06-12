@@ -46,9 +46,10 @@ class MyDataFrame(pd.DataFrame):
         return self.append(dfaux, ignore_index=True)
 
 
-def main(dataset_names=None):
+def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
+        n_folds=10, seed_num=42):
     if dataset_names is None:
-        dataset_names = ['vowel']
+        dataset_names = ['glass', 'hepatitis', 'ionosphere', 'vowel']
 
     seed_num = 42
     mc_iterations = 1
@@ -98,9 +99,15 @@ def main(dataset_names=None):
         accuracies_o_norm = np.zeros(mc_iterations * n_folds)
         accuracies_t_norm = np.zeros(mc_iterations * n_folds)
         accuracies_tuned = np.zeros(mc_iterations * n_folds)
-        bandwidth_o_norm = bandwidths_o_norm[name]
-        bandwidth_t_norm = bandwidths_t_norm[name]
-        bandwidth_bc = bandwidths_bc[name]
+        if name in bandwidths_o_norm.keys():
+            bandwidth_o_norm = bandwidths_o_norm[name]
+            bandwidth_t_norm = bandwidths_t_norm[name]
+            bandwidth_bc = bandwidths_bc[name]
+        else:
+            bandwidth_o_norm = np.mean(bandwidths_o_norm.values())
+            bandwidth_t_norm = np.mean(bandwidths_t_norm.values())
+            bandwidth_bc = np.mean(bandwidths_bc.values())
+
         for mc in np.arange(mc_iterations):
             skf = StratifiedKFold(dataset.target, n_folds=n_folds,
                                   shuffle=True)
@@ -117,6 +124,12 @@ def main(dataset_names=None):
                     x_train = x_train[y_train <= 5]
                     y_train = y_train[y_train <= 5]
                     y_test[y_test > 5] = 6
+                elif dataset.n_classes > 2:
+                    x_train = x_train[y_train <= dataset.n_classes/2]
+                    y_train = y_train[y_train <= dataset.n_classes/2]
+                    y_test[y_test > dataset.n_classes/2] = dataset.n_classes+1
+                else:
+                    continue
 
                 if estimator_type == "svm":
                     est = OneClassSVM(nu=0.5, gamma=1.0/x_train.shape[1])
@@ -194,14 +207,32 @@ def main(dataset_names=None):
     diary.add_entry('summary', [table])
 
 
-if __name__ == '__main__':
+def parse_arguments():
     parser = OptionParser()
-    parser.add_option("-d", "--dataset_names", dest="dataset_names",
-                              help="list of dataset names")
+    parser.add_option("-d", "--dataset-names", dest="dataset_names",
+            default=None, help="list of dataset names coma separated")
+    parser.add_option("-e", "--estimator", dest="estimator_type",
+            default='gmm', type='string',
+            help="Estimator to use for the background check")
+    parser.add_option("-m", "--mc-iterations", dest="mc_iterations",
+            default=20, type=int,
+            help="Number of Monte Carlo iterations")
+    parser.add_option("-f", "--n-folds", dest="n_folds",
+            default=5, type=int,
+            help="Number of folds for the cross-validation")
+    parser.add_option("-s", "--seed-num", dest="seed_num",
+            default=42, type=int,
+            help="Seed number for the random number generator")
 
-    (options, args) = parser.parse_args()
+    return parser.parse_args()
+
+if __name__ == '__main__':
+    (options, args) = parse_arguments()
+
     if options.dataset_names is not None:
         dataset_names = options.dataset_names.split(',')
-        main(dataset_names)
     else:
-        main()
+        dataset_names = None
+
+    main(dataset_names, options.estimator_type, options.mc_iterations,
+            options.n_folds, options.seed_num)
