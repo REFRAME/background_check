@@ -29,7 +29,15 @@ class OcDecomposition(object):
             c.fit(X[y == c_index])
             self._estimators.append(c)
         scores = self.score(X, mus=mus, ms=ms)
-        self._thresholds = np.percentile(scores, threshold_percentile, axis=0)
+        self._thresholds = np.zeros(len(self._estimators))
+        for c_index in np.arange(n_classes):
+            u = np.unique(scores[:, c_index])
+            self._thresholds[c_index] = np.percentile(u, threshold_percentile)
+        # self._thresholds = np.percentile(scores, threshold_percentile, axis=0)
+        # for i, t in enumerate(self._thresholds):
+        #     if t == 0.0:
+        #         s = scores[:, i]
+        #         self._thresholds[i] = np.amin(s[s > 0])
         self._means = scores.mean(axis=0)
 
     def score(self, X, mus=None, ms=None):
