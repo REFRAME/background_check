@@ -15,22 +15,29 @@ class OcDecomposition(object):
         self._estimators = []
         self._thresholds = []
         self._normalization = normalization
+        self._priors = []
+        self._means = []
 
     def fit(self, X, y, threshold_percentile=10):
         classes = np.unique(y)
         n_classes = np.alen(classes)
+        class_count = np.bincount(y)
+        self._priors = class_count / np.alen(y)
         for c_index in np.arange(n_classes):
             c = copy.deepcopy(self._base_estimator)
             c.fit(X[y == c_index])
             self._estimators.append(c)
         scores = self.score(X)
         self._thresholds = np.percentile(scores, threshold_percentile, axis=0)
+        self._means = scores.mean(axis=0)
 
     def score(self, X):
         if type(self._base_estimator) is BackgroundCheck:
             return self.score_bc(X)
         elif self._normalization in ["O-norm", "T-norm"]:
-            return self.score_dens(X) + 1e-8
+            return self.score_dens(X) + 1e-8    # this value is added to avoid
+                                                # having 0-valued thresholds,
+                                                # which is a problem for o-norm
 
     def score_dens(self, X):
         n = np.alen(X)
@@ -55,26 +62,35 @@ class OcDecomposition(object):
             return self.predict_bc(scores)
         elif self._normalization == "O-norm":
             return self.predict_o_norm(scores)
+        elif self._normalization == "T-norm":
+            return self.predict_t_norm(scores)
 
     def predict_o_norm(self, scores):
+        reject = scores <= self._thresholds
         scores /= self._thresholds
+        scores[reject] = -1
         max_scores = scores.max(axis=1)
         predictions = scores.argmax(axis=1)
         predictions[max_scores <= 1] = len(self._estimators)
         return predictions
 
     def predict_t_norm(self, scores):
-        scores /= self._thresholds
+        reject = scores <= self._thresholds
+        scores -= self._thresholds
+        means = self._means - self._thresholds
+        scores = (scores / means) * self._priors
+        scores[reject] = -np.inf
         max_scores = scores.max(axis=1)
         predictions = scores.argmax(axis=1)
-        predictions[max_scores <= 1] = len(self._estimators)
+        predictions[max_scores <= 0] = len(self._estimators)
         return predictions
 
     def predict_bc(self, scores):
-        reject = np.sum(scores <= self._thresholds, axis=1)
-        reject = (reject == len(self._estimators))
+        reject = scores <= self._thresholds
+        total_reject = (np.sum(reject, axis=1) == len(self._estimators))
+        scores[reject] = -1
         predictions = scores.argmax(axis=1)
-        predictions[reject] = len(self._estimators)
+        predictions[total_reject] = len(self._estimators)
         return predictions
 
     def accuracy(self, X, y):
