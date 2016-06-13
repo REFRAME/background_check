@@ -135,6 +135,8 @@ def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
                     est = OneClassSVM(nu=0.5, gamma=1.0/x_train.shape[1])
                 elif estimator_type == "gmm":
                     est = GMM(n_components=1)
+                elif estimator_type == "gmm3":
+                    est = GMM(n_components=3)
                 elif estimator_type == "kernel":
                     est = MyMultivariateKernelDensity(kernel='gaussian',
                                                       bandwidth=bandwidth_bc)
