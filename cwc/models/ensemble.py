@@ -2,8 +2,10 @@ from __future__ import division
 import numpy as np
 import copy
 
+from cwc.evaluation.metrics import average_cross_entropy
+
 from sklearn.svm import SVC
-from sklearn.metrics import log_loss
+from sklearn.preprocessing import label_binarize
 
 from scipy.optimize import minimize
 
@@ -157,7 +159,8 @@ class Ensemble(object):
 
     def log_loss(self, X, y):
         y_pred = self.predict_proba(X)
-        return log_loss(y, y_pred, eps=1e-3)
+        y_actu = label_binarize(y, range(y_pred.shape[1]))
+        return average_cross_entropy(y_actu,y_pred)
 
 
 def get_predictions(c, X):
