@@ -70,6 +70,7 @@ class Dataset(object):
 
 
 class Data(object):
+    uci_nan = -2147483648
     mldata_names = {'diabetes':'diabetes',
                     'ecoli':'uci-20070111 ecoli',
                     'glass':'glass',
@@ -157,9 +158,7 @@ class Data(object):
             data = np.genfromtxt(self.data_home+'horse-colic.data')
             target = data[:,23]
             data = np.delete(data, 23, axis=1)
-            #data = self.remove_columns_with_missing_values(data, 5)
-            #data, target = self.remove_rows_with_missing_values(data, target)
-            data = self.substitute_missing_values(data, fix_value=0, column_mean=False)
+            data = self.substitute_missing_values(data, column_mean=True)
         elif name == 'libras-movement':
             data = np.genfromtxt(self.data_home+'movement_libras.data',
                     delimiter=',')
@@ -173,7 +172,7 @@ class Data(object):
             for i in range(data.shape[1]):
                 data[:,i] = self.nominal_to_float(data[:,i])
             data = data.astype(float)
-            data = self.substitute_missing_values(data, fix_value=0, column_mean=False)
+            data = self.substitute_missing_values(data, column_mean=True)
         elif name == 'landsat-satellite':
             data_train = np.genfromtxt(self.data_home+'sat.trn')
             data_test = np.genfromtxt(self.data_home+'sat.tst')
@@ -191,7 +190,6 @@ class Data(object):
             data = np.delete(data, (0,1), axis=1)
             target = np.genfromtxt(self.data_home+'wdbc.data', delimiter=',',
                                    usecols=1, dtype=str)
-            data, target = self.remove_rows_with_missing_values(data, target)
         elif name == 'wpbc':
             data = np.genfromtxt(self.data_home+'wpbc.data', delimiter=',')
             data = np.delete(data, (0,1), axis=1)
@@ -271,10 +269,7 @@ class Data(object):
                       mldata['double4'].T.reshape(-1,3),
                       mldata['int5'][:-1,:].T.reshape(-1,5)
                               ))
-            missing = np.logical_or(np.isnan(data),
-                                    data == -2147483648).any(axis=1)
-            data = data[~missing]
-            target = target[~missing]
+            data, target = self.remove_rows_with_missing_values(data, target)
         elif name=='car':
             target = mldata['class']
             feature_names = ['data', 'target', 'doors', 'persons', 'lug_boot',
@@ -285,17 +280,11 @@ class Data(object):
         elif name=='cleveland':
             target = mldata.int2.reshape(-1,1)
             data = np.hstack((mldata.target.T, mldata.data))
-            missing = np.logical_or(np.isnan(data),
-                                    data == -2147483648).any(axis=1)
-            data = data[~missing]
-            target = target[~missing]
+            data, target = self.remove_rows_with_missing_values(data, target)
         elif name=='dermatology':
             target = mldata.data[:,-1]
             data = mldata.data[:,:-1]
-            missing = np.logical_or(np.isnan(data),
-                                    data == -2147483648).any(axis=1)
-            data = data[~missing]
-            target = target[~missing]
+            data, target = self.remove_rows_with_missing_values(data, target)
         elif name=='flare':
             target = mldata.target
             data = mldata['int0'].T
@@ -351,8 +340,7 @@ class Data(object):
             target = mldata['Class'].T
             data = self.mldata_to_numeric_matrix(mldata, 155,
                                                  exclude=['Class'])
-            #data, target = self.remove_rows_with_missing_values(data, target)
-            data = self.substitute_missing_values(data, fix_value=0, column_mean=False)
+            data = self.substitute_missing_values(data, column_mean=True)
         elif name=='lung-cancer':
             target = mldata['Class'].T
             data = self.mldata_to_numeric_matrix(mldata, 96,
@@ -427,9 +415,15 @@ class Data(object):
                 new_x[x==name] = i - substract
         return new_x
 
+    def number_of_missing_values(self,data):
+        return np.logical_or(np.isnan(data), data == self.uci_nan).sum()
+
+    def row_indices_with_missing_values(self,data):
+        return np.logical_or(np.isnan(data),
+                             data == self.uci_nan).any(axis=1)
+
     def remove_rows_with_missing_values(self, data, target):
-        missing = np.logical_or(np.isnan(data),
-                                data == -2147483648).any(axis=1)
+        missing = self.row_indices_with_missing_values(data)
         data = data[~missing]
         target = target[~missing]
         return data, target
@@ -441,7 +435,7 @@ class Data(object):
         return data
 
 
-    def substitute_missing_values(self, data, fix_value=0, column_mean=True):
+    def substitute_missing_values(self, data, fix_value=0, column_mean=False):
         for i in range(data.shape[1]):
             index = np.where(np.isnan(data[:,i]))
             if column_mean:
@@ -492,14 +486,31 @@ def test_datasets(dataset_names):
     return accuracies
 
 def test():
-    datasets_Li2014 = ['abalone', 'balance-scale', 'credit-approval',
-    'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis', 'horse',
-    'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
-    'landsat-satellite', 'segment', 'spambase', 'wdbc', 'wpbc', 'yeast']
+    datasets_li2014 = ['abalone', 'balance-scale', 'credit-approval',
+            'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis',
+            'horse', 'ionosphere', 'lung-cancer', 'libras-movement',
+            'mushroom', 'diabetes', 'landsat-satellite', 'segment',
+            'spambase', 'wdbc', 'wpbc', 'yeast']
 
+    datasets_hempstalk2008 = ['diabetes', 'ecoli', 'glass',
+            'heart-statlog', 'ionosphere', 'iris', 'letter',
+            'mfeat-karhunen', 'mfeat-morphological', 'mfeat-zernike',
+            'optdigits', 'pendigits', 'sonar', 'vehicle', 'waveform-5000']
 
-    dataset_names = datasets_Li2014
-    dataset_names = ['hypothyroid']
+    datasets_others = [ 'diabetes', 'ecoli', 'glass', 'heart-statlog',
+            'ionosphere', 'iris', 'letter', 'mfeat-karhunen',
+            'mfeat-morphological', 'mfeat-zernike', 'optdigits',
+            'pendigits', 'sonar', 'vehicle', 'waveform-5000',
+            'scene-classification', 'tic-tac', 'autos', 'car', 'cleveland',
+            'dermatology', 'flare', 'page-blocks', 'segment', 'shuttle',
+            'vowel', 'zoo', 'abalone', 'balance-scale', 'credit-approval',
+            'german', 'hepatitis', 'lung-cancer']
+
+    # Datasets that we can add but need to be reduced
+    datasets_to_add = ['MNIST']
+
+    dataset_names = list(set(datasets_li2014 + datasets_hempstalk2008 +
+        datasets_others))
 
     accuracies = test_datasets(dataset_names)
     for i, name in enumerate(dataset_names):
