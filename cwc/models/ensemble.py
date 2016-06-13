@@ -3,6 +3,7 @@ import numpy as np
 import copy
 
 from sklearn.svm import SVC
+from sklearn.metrics import log_loss
 
 from scipy.optimize import minimize
 
@@ -137,9 +138,26 @@ class Ensemble(object):
             votes[range(n), pred] += conf * self._weights[c_index]
         return votes.argmax(axis=1)
 
+    def predict_proba(self, X):
+        n = np.alen(X)
+        for c_index, c in enumerate(self._classifiers):
+            res = get_predictions(c, X)
+            pred = res[0]
+            conf = res[1]
+            if c_index == 0:
+                votes = np.zeros((n, c.n_classes))
+            votes[range(n), pred] += conf * self._weights[c_index]
+        proba = votes/votes.sum(axis=1).reshape(-1,1)
+        proba[np.isnan(proba)] = 1/proba.shape[1]
+        return proba
+
     def accuracy(self, X, y):
         predictions = self.predict(X)
         return np.mean(predictions == y)
+
+    def log_loss(self, X, y):
+        y_pred = self.predict_proba(X)
+        return log_loss(y, y_pred, eps=1e-3)
 
 
 def get_predictions(c, X):

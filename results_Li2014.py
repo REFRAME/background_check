@@ -33,7 +33,7 @@ class MyDataFrame(pd.DataFrame):
         return self.append(dfaux, ignore_index=True)
 
 
-def export_datasets_description_to_latex(data, path='', index=False):
+def export_datasets_description_to_latex(data, path='', index=True):
     df_data = MyDataFrame(columns=['Name', 'Samples', 'Features', 'Classes'])
     dataset_names = data.datasets.keys()
     dataset_names.sort()
@@ -54,13 +54,13 @@ def export_summary(df, diary):
         return '%2.2f' % (100*x)
 
     df = df.convert_objects(convert_numeric=True)
-    table = df.pivot_table(values=['acc'], index=['dataset'],
+    table = df.pivot_table(values=['acc', 'logloss'], index=['dataset'],
                                   columns=['method'], aggfunc=[np.mean])
 
     table.to_latex(os.path.join(diary.path,'acc.tex'),
                    float_format=float_100_to_string)
 
-    table = df.pivot_table(values=['acc'], index=['dataset'],
+    table = df.pivot_table(values=['acc', 'logloss'], index=['dataset'],
                                   columns=['method'], aggfunc=[np.mean,
                                       np.std])
 
@@ -76,23 +76,24 @@ def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
     if dataset_names is None:
         # All the datasets used in Li2014
         datasets_li2014 = ['abalone', 'balance-scale', 'credit-approval',
-        'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis', 'horse',
-        'ionosphere', 'lung-cancer', 'libras-movement', 'mushroom', 'diabetes',
-        'landsat-satellite', 'segment', 'spambase', 'wdbc', 'wpbc', 'yeast']
+                'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis',
+                'horse', 'ionosphere', 'lung-cancer', 'libras-movement',
+                'mushroom', 'diabetes', 'landsat-satellite', 'segment',
+                'spambase', 'wdbc', 'wpbc', 'yeast']
 
-        datasets_hempstalk2008 = ['diabetes', 'ecoli', 'glass', 'heart-statlog',
-                     'ionosphere', 'iris', 'letter', 'mfeat-karhunen',
-                     'mfeat-morphological', 'mfeat-zernike', 'optdigits',
-                     'pendigits', 'sonar', 'vehicle', 'waveform-5000']
+        datasets_hempstalk2008 = ['diabetes', 'ecoli', 'glass',
+                'heart-statlog', 'ionosphere', 'iris', 'letter',
+                'mfeat-karhunen', 'mfeat-morphological', 'mfeat-zernike',
+                'optdigits', 'pendigits', 'sonar', 'vehicle', 'waveform-5000']
 
         datasets_others = [ 'diabetes', 'ecoli', 'glass', 'heart-statlog',
                 'ionosphere', 'iris', 'letter', 'mfeat-karhunen',
                 'mfeat-morphological', 'mfeat-zernike', 'optdigits',
                 'pendigits', 'sonar', 'vehicle', 'waveform-5000',
-                'scene-classification', 'tic-tac', 'autos', 'car',
-                'cleveland', 'dermatology', 'flare', 'page-blocks', 'segment',
-                'shuttle', 'vowel', 'zoo', 'abalone', 'balance-scale',
-                'credit-approval', 'german', 'hepatitis', 'lung-cancer']
+                'scene-classification', 'tic-tac', 'autos', 'car', 'cleveland',
+                'dermatology', 'flare', 'page-blocks', 'segment', 'shuttle',
+                'vowel', 'zoo', 'abalone', 'balance-scale', 'credit-approval',
+                'german', 'hepatitis', 'lung-cancer']
 
         # Datasets that we can add but need to be reduced
         datasets_to_add = ['MNIST']
@@ -112,7 +113,7 @@ def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
     # Final results
     diary.add_notebook('summary', verbose=True)
 
-    columns=['dataset', 'method', 'mc', 'test_fold', 'acc']
+    columns=['dataset', 'method', 'mc', 'test_fold', 'acc', 'logloss']
     df = MyDataFrame(columns=columns)
 
     diary.add_entry('parameters', ['seed', seed_num, 'mc_it', mc_iterations,
@@ -128,6 +129,8 @@ def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
         diary.add_entry('datasets', [dataset.__str__()])
         accuracies = np.zeros(mc_iterations * n_folds)
         accuracies_li = np.zeros(mc_iterations * n_folds)
+        log_losses = np.zeros(mc_iterations * n_folds)
+        log_losses_li = np.zeros(mc_iterations * n_folds)
         for mc in np.arange(mc_iterations):
             skf = StratifiedKFold(dataset.target, n_folds=n_folds,
                                   shuffle=True)
@@ -161,12 +164,17 @@ def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
                 xs_bootstrap, ys_bootstrap = ensemble.fit(x_train, y_train)
                 accuracy = ensemble.accuracy(x_test, y_test)
                 accuracies[mc * n_folds + test_fold] = accuracy
+
+                log_loss = ensemble.log_loss(x_test, y_test)
+                log_losses[mc * n_folds + test_fold] = log_loss
                 diary.add_entry('validation', ['dataset', name,
                                                'method', 'our',
                                                'mc', mc,
                                                'test_fold', test_fold,
-                                               'acc', accuracy])
-                df = df.append_rows([[name, 'our', mc, test_fold, accuracy]])
+                                               'acc', accuracy,
+                                               'logloss', log_loss])
+                df = df.append_rows([[name, 'our', mc, test_fold, accuracy,
+                                      log_loss]])
 
                 ensemble_li = Ensemble(n_ensemble=n_ensemble, lambd=1e-8)
                 ensemble_li.fit(x_train, y_train, xs=xs_bootstrap,
@@ -174,12 +182,16 @@ def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
 
                 accuracy_li = ensemble_li.accuracy(x_test, y_test)
                 accuracies_li[mc * n_folds + test_fold] = accuracy_li
+                log_loss_li = ensemble_li.log_loss(x_test, y_test)
+                log_losses_li[mc * n_folds + test_fold] = log_loss_li
                 diary.add_entry('validation', ['dataset', name,
                                                'method', 'Li2014',
                                                'mc', mc,
                                                'test_fold', test_fold,
-                                               'acc', accuracy_li])
-                df = df.append_rows([[name, 'Li2014', mc, test_fold, accuracy_li]])
+                                               'acc', accuracy_li,
+                                               'logloss', log_loss_li])
+                df = df.append_rows([[name, 'Li2014', mc, test_fold,
+                                      accuracy_li, log_loss_li]])
 
     export_summary(df, diary)
 

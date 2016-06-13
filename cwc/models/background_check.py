@@ -23,6 +23,8 @@ class BackgroundCheck(object):
         _max_dens (float): Maximum density value estimated from training data.
 
     """
+    # TODO add possibility of passing a generative model that does not need to
+    # be trained (e.g. if the foreground has been already trained)
     def __init__(self, estimator=GMM(n_components=1, covariance_type='diag'),
                  mu=0.0, m=1.0):
         self._estimator = estimator
