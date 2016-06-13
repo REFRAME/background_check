@@ -150,7 +150,7 @@ class MyMultivariateNormal(object):
 
     @property
     def maximum(self):
-        return self.score(self.mu.reshape(-1,1))
+        return self.score(np.array(self.mu).reshape(-1,1))
 
 
 class MultivariateNormal(object):
