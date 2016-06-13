@@ -9,9 +9,6 @@ from sklearn.svm import OneClassSVM
 from sklearn.mixture import GMM
 from sklearn.neighbors import KernelDensity
 
-# import matplotlib.pyplot as plt
-# plt.rcParams['figure.autolayout'] = True
-
 from cwc.synthetic_data.datasets import Data
 from cwc.models.discriminative_models import MyDecisionTreeClassifier
 from cwc.models.background_check import BackgroundCheck
@@ -52,14 +49,27 @@ class MyDataFrame(pd.DataFrame):
 def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
         n_folds=10, seed_num=42):
     if dataset_names is None:
-        dataset_names = ['glass','hepatitis','ionosphere','vowel']
+        dataset_names = ['glass', 'hepatitis', 'ionosphere', 'vowel']
 
-    # bandwidths = {'glass': 0.2615, 'ionosphere': 0.0398, 'hepatitis': 0.3092,
-    #               'vowel': 0.0375}  # This is for mc=5 and n_folds=2
+    seed_num = 42
+    mc_iterations = 1
+    n_folds = 10
+    estimator_type = "kernel"
 
-    bandwidths = {'glass': 0.2695, 'ionosphere': 0.019, 'hepatitis': 0.301,
-                  'vowel': 0.0565}  # This is for mc=1 and n_folds=10,
-                                    # results don't perfectly match, though
+    bandwidths_o_norm = {'glass': 0.09, 'hepatitis': 0.105,
+                         'ionosphere': 0.039, 'vowel': 0.075}
+
+    bandwidths_bc = {'glass': 0.09, 'hepatitis': 0.105,
+                     'ionosphere': 0.039, 'vowel': 0.0145}
+
+    bandwidths_t_norm = {'glass': 0.336, 'hepatitis': 0.015,
+                         'ionosphere': 0.0385, 'vowel': 0.0145}
+
+    tuned_mus = {'glass': [0.094, 0.095, 0.2, 0.0, 0.0, 0.1],
+                 'vowel': [0.0, 0.0, 0.5, 0.5, 0.5, 0.0]}
+    
+    tuned_ms = {'glass': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+                'vowel': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]}
 
     # Diary to save the partial and final results
     diary = Diary(name='results_Tax2008', path='results',
@@ -88,10 +98,16 @@ def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
         accuracies = np.zeros(mc_iterations * n_folds)
         accuracies_o_norm = np.zeros(mc_iterations * n_folds)
         accuracies_t_norm = np.zeros(mc_iterations * n_folds)
-        if name in bandwidths:
-            bandwidth = bandwidths[name]
+        accuracies_tuned = np.zeros(mc_iterations * n_folds)
+        if name in bandwidths_o_norm.keys():
+            bandwidth_o_norm = bandwidths_o_norm[name]
+            bandwidth_t_norm = bandwidths_t_norm[name]
+            bandwidth_bc = bandwidths_bc[name]
         else:
-            bandwidth = np.mean(bandwidths.values())
+            bandwidth_o_norm = np.mean(bandwidths_o_norm.values())
+            bandwidth_t_norm = np.mean(bandwidths_t_norm.values())
+            bandwidth_bc = np.mean(bandwidths_bc.values())
+
         for mc in np.arange(mc_iterations):
             skf = StratifiedKFold(dataset.target, n_folds=n_folds,
                                   shuffle=True)
@@ -116,31 +132,27 @@ def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
                     continue
 
                 if estimator_type == "svm":
-                    est = OneClassSVM(nu=0.1, gamma=1.0/x_train.shape[1])
+                    est = OneClassSVM(nu=0.5, gamma=1.0/x_train.shape[1])
                 elif estimator_type == "gmm":
                     est = GMM(n_components=1)
                 elif estimator_type == "kernel":
                     est = MyMultivariateKernelDensity(kernel='gaussian',
-                                                      bandwidth=bandwidth)
-
+                                                      bandwidth=bandwidth_bc)
+                # Untuned background check
                 bc = BackgroundCheck(estimator=est, mu=0.0, m=1.0)
                 oc = OcDecomposition(base_estimator=bc)
-                mus = None
-                ms = None
-                # mus = [0.05, 0.1, 0.2, 0.0, 0.0, 0.1]
-                # ms = [1.0, 1.0, 1.0, 1.0, 1.0, 0.1]
-                oc.fit(x_train, y_train, mus=mus, ms=ms)
-                accuracy = oc.accuracy(x_test, y_test, mus=mus, ms=ms)
+                oc.fit(x_train, y_train)
+                accuracy = oc.accuracy(x_test, y_test)
                 accuracies[mc * n_folds + test_fold] = accuracy
                 diary.add_entry('validation', ['dataset', name,
-                                               'method', 'our',
+                                               'method', 'BC',
                                                'mc', mc,
                                                'test_fold', test_fold,
                                                'acc', accuracy])
-                df = df.append_rows([[name, 'our', mc, test_fold, accuracy]])
+                df = df.append_rows([[name, 'BC', mc, test_fold, accuracy]])
 
                 e = MyMultivariateKernelDensity(kernel='gaussian',
-                                                bandwidth=bandwidth)
+                                                bandwidth=bandwidth_o_norm)
                 oc_o_norm = OcDecomposition(base_estimator=e,
                                             normalization="O-norm")
                 oc_o_norm.fit(x_train, y_train)
@@ -155,7 +167,7 @@ def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
                                       accuracy_o_norm]])
 
                 e = MyMultivariateKernelDensity(kernel='gaussian',
-                                                bandwidth=bandwidth)
+                                                bandwidth=bandwidth_t_norm)
                 oc_t_norm = OcDecomposition(base_estimator=e,
                                             normalization="T-norm")
                 oc_t_norm.fit(x_train, y_train)
@@ -169,6 +181,26 @@ def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
                 df = df.append_rows([[name, 'T-norm', mc, test_fold,
                                       accuracy_t_norm]])
 
+                # Tuned background check
+                if name in tuned_mus.keys():
+                    mus = tuned_mus[name]
+                    ms = tuned_ms[name]
+                else:
+                    mus = None
+                    ms = None
+                bc = BackgroundCheck(estimator=est, mu=0.0, m=1.0)
+                oc_tuned = OcDecomposition(base_estimator=bc)
+                oc_tuned.fit(x_train, y_train, mus=mus, ms=ms)
+                accuracy_tuned = oc_tuned.accuracy(x_test, y_test, mus=mus,
+                                                   ms=ms)
+                accuracies_tuned[mc * n_folds + test_fold] = accuracy_tuned
+                diary.add_entry('validation', ['dataset', name,
+                                               'method', 'BC-tuned',
+                                               'mc', mc,
+                                               'test_fold', test_fold,
+                                               'acc', accuracy_tuned])
+                df = df.append_rows([[name, 'BC-tuned', mc, test_fold,
+                                      accuracy_tuned]])
     df = df.convert_objects(convert_numeric=True)
     table = df.pivot_table(values=['acc'], index=['dataset'],
                                   columns=['method'], aggfunc=[np.mean, np.std])
