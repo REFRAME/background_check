@@ -1,5 +1,6 @@
 import warnings
 from sklearn.datasets import fetch_mldata
+from sklearn.cross_validation import StratifiedKFold
 import matplotlib.pyplot as plt
 from math import ceil
 from math import sqrt
@@ -27,6 +28,20 @@ class Dataset(object):
             new_target[target==name] = i
         classes = range(len(names))
         return new_target, classes, names, counts
+
+    def separate_sets(self, x, y, test_fold_id, test_folds):
+        x_test = x[test_folds == test_fold_id, :]
+        y_test = y[test_folds == test_fold_id]
+
+        x_train = x[test_folds != test_fold_id, :]
+        y_train = y[test_folds != test_fold_id]
+        return [x_train, y_train, x_test, y_test]
+
+    def reduce_number_instances(self, proportion=0.1):
+        skf = StratifiedKFold(self._target, n_folds=1.0/proportion)
+        test_folds = skf.test_folds
+        _, _, self._data, self._target = self.separate_sets(
+                                    self._data, self._target, 0, test_folds)
 
     @property
     def target(self):
