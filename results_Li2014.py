@@ -121,6 +121,9 @@ def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
                                    n_ensemble,
                                    'estimator_type', estimator_type])
     data = Data(dataset_names=dataset_names)
+    for name, dataset in data.datasets.iteritems():
+        if name in ['letter','shuttle']:
+            dataset.reduce_number_instances(0.1)
     export_datasets_description_to_latex(data, path=diary.path)
 
     for i, (name, dataset) in enumerate(data.datasets.iteritems()):
