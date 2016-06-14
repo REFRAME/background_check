@@ -98,16 +98,18 @@ def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
         accuracies = np.zeros(mc_iterations * n_folds)
         accuracies_o_norm = np.zeros(mc_iterations * n_folds)
         accuracies_t_norm = np.zeros(mc_iterations * n_folds)
-        accuracies_tuned = np.zeros(mc_iterations * n_folds)
-        if name in bandwidths_o_norm.keys():
-            bandwidth_o_norm = bandwidths_o_norm[name]
-            bandwidth_t_norm = bandwidths_t_norm[name]
-            bandwidth_bc = bandwidths_bc[name]
-        else:
-            bandwidth_o_norm = np.mean(bandwidths_o_norm.values())
-            bandwidth_t_norm = np.mean(bandwidths_t_norm.values())
-            bandwidth_bc = np.mean(bandwidths_bc.values())
-
+        # accuracies_tuned = np.zeros(mc_iterations * n_folds)
+        # if name in bandwidths_o_norm.keys():
+        #     bandwidth_o_norm = bandwidths_o_norm[name]
+        #     bandwidth_t_norm = bandwidths_t_norm[name]
+        #     bandwidth_bc = bandwidths_bc[name]
+        # else:
+        #     bandwidth_o_norm = np.mean(bandwidths_o_norm.values())
+        #     bandwidth_t_norm = np.mean(bandwidths_t_norm.values())
+        #     bandwidth_bc = np.mean(bandwidths_bc.values())
+        bandwidth_o_norm = 0.05
+        bandwidth_t_norm = 0.05
+        bandwidth_bc = 0.05
         for mc in np.arange(mc_iterations):
             skf = StratifiedKFold(dataset.target, n_folds=n_folds,
                                   shuffle=True)
@@ -116,20 +118,20 @@ def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
                 x_train, y_train, x_test, y_test = separate_sets(
                         dataset.data, dataset.target, test_fold, test_folds)
 
-                if name in ['glass', 'hepatitis', 'ionosphere', 'thyroid',
-                            'iris', 'heart-statlog', 'diabetes', 'abalone',
-                            'mushroom', 'spambase']:
-                    x_test, y_test = generate_outliers(x_test, y_test)
-                elif name == 'vowel':
-                    x_train = x_train[y_train <= 5]
-                    y_train = y_train[y_train <= 5]
-                    y_test[y_test > 5] = 6
-                elif dataset.n_classes > 2:
-                    x_train = x_train[y_train <= dataset.n_classes/2]
-                    y_train = y_train[y_train <= dataset.n_classes/2]
-                    y_test[y_test > dataset.n_classes/2] = dataset.n_classes+1
-                else:
-                    continue
+                # if name in ['glass', 'hepatitis', 'ionosphere', 'thyroid',
+                #             'iris', 'heart-statlog', 'diabetes', 'abalone',
+                #             'mushroom', 'spambase']:
+                x_test, y_test = generate_outliers(x_test, y_test)
+                # elif name == 'vowel':
+                #     x_train = x_train[y_train <= 5]
+                #     y_train = y_train[y_train <= 5]
+                #     y_test[y_test > 5] = 6
+                # elif dataset.n_classes > 2:
+                #     x_train = x_train[y_train <= dataset.n_classes/2]
+                #     y_train = y_train[y_train <= dataset.n_classes/2]
+                #     y_test[y_test > dataset.n_classes/2] = dataset.n_classes+1
+                # else:
+                #     continue
 
                 if estimator_type == "svm":
                     est = OneClassSVM(nu=0.5, gamma=1.0/x_train.shape[1])
@@ -184,25 +186,25 @@ def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
                                       accuracy_t_norm]])
 
                 # Tuned background check
-                if name in tuned_mus.keys():
-                    mus = tuned_mus[name]
-                    ms = tuned_ms[name]
-                else:
-                    mus = None
-                    ms = None
-                bc = BackgroundCheck(estimator=est, mu=0.0, m=1.0)
-                oc_tuned = OcDecomposition(base_estimator=bc)
-                oc_tuned.fit(x_train, y_train, mus=mus, ms=ms)
-                accuracy_tuned = oc_tuned.accuracy(x_test, y_test, mus=mus,
-                                                   ms=ms)
-                accuracies_tuned[mc * n_folds + test_fold] = accuracy_tuned
-                diary.add_entry('validation', ['dataset', name,
-                                               'method', 'BC-tuned',
-                                               'mc', mc,
-                                               'test_fold', test_fold,
-                                               'acc', accuracy_tuned])
-                df = df.append_rows([[name, 'BC-tuned', mc, test_fold,
-                                      accuracy_tuned]])
+                # if name in tuned_mus.keys():
+                #     mus = tuned_mus[name]
+                #     ms = tuned_ms[name]
+                # else:
+                #     mus = None
+                #     ms = None
+                # bc = BackgroundCheck(estimator=est, mu=0.0, m=1.0)
+                # oc_tuned = OcDecomposition(base_estimator=bc)
+                # oc_tuned.fit(x_train, y_train, mus=mus, ms=ms)
+                # accuracy_tuned = oc_tuned.accuracy(x_test, y_test, mus=mus,
+                #                                    ms=ms)
+                # accuracies_tuned[mc * n_folds + test_fold] = accuracy_tuned
+                # diary.add_entry('validation', ['dataset', name,
+                #                                'method', 'BC-tuned',
+                #                                'mc', mc,
+                #                                'test_fold', test_fold,
+                #                                'acc', accuracy_tuned])
+                # df = df.append_rows([[name, 'BC-tuned', mc, test_fold,
+                #                       accuracy_tuned]])
     df = df.convert_objects(convert_numeric=True)
     table = df.pivot_table(values=['acc'], index=['dataset'],
                                   columns=['method'], aggfunc=[np.mean, np.std])
