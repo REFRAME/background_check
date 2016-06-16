@@ -1,4 +1,5 @@
 from __future__ import division
+import os
 from optparse import OptionParser
 import numpy as np
 
@@ -18,14 +19,16 @@ from cwc.models.density_estimators import MyMultivariateKernelDensity
 import pandas as pd
 from diary import Diary
 
+# Not to crop the output columns
+pd.set_option('expand_frame_repr', False)
 
 def separate_sets(x, y, test_fold_id, test_folds):
-        x_test = x[test_folds == test_fold_id, :]
-        y_test = y[test_folds == test_fold_id]
+    x_test = x[test_folds == test_fold_id, :]
+    y_test = y[test_folds == test_fold_id]
 
-        x_train = x[test_folds != test_fold_id, :]
-        y_train = y[test_folds != test_fold_id]
-        return [x_train, y_train, x_test, y_test]
+    x_train = x[test_folds != test_fold_id, :]
+    y_train = y[test_folds != test_fold_id]
+    return [x_train, y_train, x_test, y_test]
 
 
 def generate_outliers(x, y, variance_multiplier=4.0, outlier_proportion=0.5):
@@ -45,16 +48,47 @@ class MyDataFrame(pd.DataFrame):
         dfaux = pd.DataFrame(rows, columns=self.columns)
         return self.append(dfaux, ignore_index=True)
 
+def export_datasets_description_to_latex(data, path='', index=True):
+    df_data = MyDataFrame(columns=['Name', 'Samples', 'Features', 'Classes'])
+    dataset_names = data.datasets.keys()
+    dataset_names.sort()
+    for name in dataset_names:
+        dataset = data.datasets[name]
+        df_data = df_data.append_rows([[name, dataset.data.shape[0],
+                             dataset.data.shape[1], len(dataset.classes)]])
+    def float_to_int_string(x):
+        return '%1.0f' % x
+
+    df_data.index += 1
+    df_data.to_latex(os.path.join(path,'datasets.tex'),
+                     float_format=float_to_int_string , index=index)
+
+
+def export_summary(df, diary):
+    def float_100_to_string(x):
+        return '%2.2f' % (100*x)
+
+    df = df.convert_objects(convert_numeric=True)
+    table = df.pivot_table(values=['acc', 'logloss'], index=['dataset'],
+                                  columns=['method'], aggfunc=[np.mean])
+
+    table.to_latex(os.path.join(diary.path,'acc.tex'),
+                   float_format=float_100_to_string)
+
+    table = df.pivot_table(values=['acc', 'logloss'], index=['dataset'],
+                                  columns=['method'], aggfunc=[np.mean,
+                                      np.std])
+
+    table.to_latex(os.path.join(diary.path,'acc_std.tex'),
+                   float_format=float_100_to_string)
+
+    diary.add_entry('summary', [table])
+
 
 def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
         n_folds=10, seed_num=42):
     if dataset_names is None:
         dataset_names = ['glass', 'hepatitis', 'ionosphere', 'vowel']
-
-    seed_num = 42
-    mc_iterations = 1
-    n_folds = 10
-    estimator_type = "kernel"
 
     bandwidths_o_norm = {'glass': 0.09, 'hepatitis': 0.105,
                          'ionosphere': 0.039, 'vowel': 0.075}
@@ -70,6 +104,10 @@ def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
     
     tuned_ms = {'glass': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
                 'vowel': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]}
+
+    bandwidth_o_norm = 0.05
+    bandwidth_t_norm = 0.05
+    bandwidth_bc = 0.05
 
     # Diary to save the partial and final results
     diary = Diary(name='results_Tax2008', path='results',
@@ -89,15 +127,20 @@ def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
 
     diary.add_entry('parameters', ['seed', seed_num, 'mc_it', mc_iterations,
                                    'n_folds', n_folds,
-                                   'estimator_type', estimator_type])
+                                   'estimator_type', estimator_type,
+                                   'bw_o', bandwidth_o_norm,
+                                   'bw_t', bandwidth_t_norm,
+                                   'bw_bc', bandwidth_bc])
     data = Data(dataset_names=dataset_names)
+    for name, dataset in data.datasets.iteritems():
+        if name in ['letter','shuttle']:
+            dataset.reduce_number_instances(0.1)
+    export_datasets_description_to_latex(data, path=diary.path)
+
     for i, (name, dataset) in enumerate(data.datasets.iteritems()):
         np.random.seed(seed_num)
         dataset.print_summary()
         diary.add_entry('datasets', [dataset.__str__()])
-        accuracies = np.zeros(mc_iterations * n_folds)
-        accuracies_o_norm = np.zeros(mc_iterations * n_folds)
-        accuracies_t_norm = np.zeros(mc_iterations * n_folds)
         # accuracies_tuned = np.zeros(mc_iterations * n_folds)
         # if name in bandwidths_o_norm.keys():
         #     bandwidth_o_norm = bandwidths_o_norm[name]
@@ -107,9 +150,6 @@ def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
         #     bandwidth_o_norm = np.mean(bandwidths_o_norm.values())
         #     bandwidth_t_norm = np.mean(bandwidths_t_norm.values())
         #     bandwidth_bc = np.mean(bandwidths_bc.values())
-        bandwidth_o_norm = 0.05
-        bandwidth_t_norm = 0.05
-        bandwidth_bc = 0.05
         for mc in np.arange(mc_iterations):
             skf = StratifiedKFold(dataset.target, n_folds=n_folds,
                                   shuffle=True)
@@ -147,7 +187,6 @@ def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
                 oc = OcDecomposition(base_estimator=bc)
                 oc.fit(x_train, y_train)
                 accuracy = oc.accuracy(x_test, y_test)
-                accuracies[mc * n_folds + test_fold] = accuracy
                 diary.add_entry('validation', ['dataset', name,
                                                'method', 'BC',
                                                'mc', mc,
@@ -161,7 +200,6 @@ def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
                                             normalization="O-norm")
                 oc_o_norm.fit(x_train, y_train)
                 accuracy_o_norm = oc_o_norm.accuracy(x_test, y_test)
-                accuracies_o_norm[mc * n_folds + test_fold] = accuracy_o_norm
                 diary.add_entry('validation', ['dataset', name,
                                                'method', 'O-norm',
                                                'mc', mc,
@@ -176,7 +214,6 @@ def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
                                             normalization="T-norm")
                 oc_t_norm.fit(x_train, y_train)
                 accuracy_t_norm = oc_t_norm.accuracy(x_test, y_test)
-                accuracies_t_norm[mc * n_folds + test_fold] = accuracy_t_norm
                 diary.add_entry('validation', ['dataset', name,
                                                'method', 'T-norm',
                                                'mc', mc,
@@ -205,11 +242,7 @@ def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
                 #                                'acc', accuracy_tuned])
                 # df = df.append_rows([[name, 'BC-tuned', mc, test_fold,
                 #                       accuracy_tuned]])
-    df = df.convert_objects(convert_numeric=True)
-    table = df.pivot_table(values=['acc'], index=['dataset'],
-                                  columns=['method'], aggfunc=[np.mean, np.std])
-    diary.add_entry('summary', [table])
-
+    export_summary(df, diary)
 
 def parse_arguments():
     parser = OptionParser()
