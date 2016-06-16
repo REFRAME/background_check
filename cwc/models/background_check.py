@@ -103,7 +103,7 @@ class BackgroundCheck(object):
         """
         if 'score' in dir(self._estimator):
             s = self._estimator.score(X)
-            if np.alen(s) == 1:
+            if np.alen(s) != np.alen(X):
                 s = self._estimator.score_samples(X)
             return s
         elif 'decision_function' in dir(self._estimator):
