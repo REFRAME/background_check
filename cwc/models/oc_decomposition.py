@@ -40,6 +40,20 @@ class OcDecomposition(object):
         #         self._thresholds[i] = np.amin(s[s > 0])
         self._means = scores.mean(axis=0)
 
+    def set_estimators(self, estimators, X, y, threshold_percentile=10,
+                       mus=None, ms=None):
+        classes = np.unique(y)
+        n_classes = np.alen(classes)
+        self._estimators = estimators
+        class_count = np.bincount(y)
+        self._priors = class_count / np.alen(y)
+        scores = self.score(X, mus=mus, ms=ms)
+        self._thresholds = np.zeros(len(self._estimators))
+        for c_index in np.arange(n_classes):
+            u = np.unique(scores[:, c_index])
+            self._thresholds[c_index] = np.percentile(u, threshold_percentile)
+        self._means = scores.mean(axis=0)
+
     def score(self, X, mus=None, ms=None):
         if type(self._base_estimator) is BackgroundCheck:
             return self.score_bc(X, mus=mus, ms=ms)

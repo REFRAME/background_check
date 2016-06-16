@@ -18,9 +18,11 @@ from cwc.models.density_estimators import MyMultivariateKernelDensity
 
 import pandas as pd
 from diary import Diary
+import copy
 
 # Not to crop the output columns
 pd.set_option('expand_frame_repr', False)
+
 
 def separate_sets(x, y, test_fold_id, test_folds):
     x_test = x[test_folds == test_fold_id, :]
@@ -48,6 +50,7 @@ class MyDataFrame(pd.DataFrame):
         dfaux = pd.DataFrame(rows, columns=self.columns)
         return self.append(dfaux, ignore_index=True)
 
+
 def export_datasets_description_to_latex(data, path='', index=True):
     df_data = MyDataFrame(columns=['Name', 'Samples', 'Features', 'Classes'])
     dataset_names = data.datasets.keys()
@@ -56,6 +59,7 @@ def export_datasets_description_to_latex(data, path='', index=True):
         dataset = data.datasets[name]
         df_data = df_data.append_rows([[name, dataset.data.shape[0],
                              dataset.data.shape[1], len(dataset.classes)]])
+
     def float_to_int_string(x):
         return '%1.0f' % x
 
@@ -83,6 +87,21 @@ def export_summary(df, diary):
                    float_format=float_100_to_string)
 
     diary.add_entry('summary', [table])
+
+
+def fit_estimators(base_estimator, X, y):
+    estimators = []
+    bcs = []
+    classes = np.unique(y)
+    n_classes = np.alen(classes)
+    for c_index in np.arange(n_classes):
+        c = copy.deepcopy(base_estimator)
+        c.fit(X[y == c_index])
+        estimators.append(c)
+        bc = BackgroundCheck(estimator=base_estimator)
+        bc.set_estimator(c, X[y == c_index])
+        bcs.append(bc)
+    return estimators, bcs
 
 
 def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
@@ -182,10 +201,22 @@ def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
                 elif estimator_type == "kernel":
                     est = MyMultivariateKernelDensity(kernel='gaussian',
                                                       bandwidth=bandwidth_bc)
+                estimators = None
+                bcs = None
+                if estimator_type == "kernel":
+                    estimators, bcs = fit_estimators(
+                                                  MyMultivariateKernelDensity(
+                                                      kernel='gaussian',
+                                                      bandwidth=bandwidth_bc),
+                                        x_train, y_train)
+
                 # Untuned background check
                 bc = BackgroundCheck(estimator=est, mu=0.0, m=1.0)
                 oc = OcDecomposition(base_estimator=bc)
-                oc.fit(x_train, y_train)
+                if estimators is None:
+                    oc.fit(x_train, y_train)
+                else:
+                    oc.set_estimators(bcs, x_train, y_train)
                 accuracy = oc.accuracy(x_test, y_test)
                 diary.add_entry('validation', ['dataset', name,
                                                'method', 'BC',
@@ -198,7 +229,10 @@ def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
                                                 bandwidth=bandwidth_o_norm)
                 oc_o_norm = OcDecomposition(base_estimator=e,
                                             normalization="O-norm")
-                oc_o_norm.fit(x_train, y_train)
+                if estimators is None:
+                    oc_o_norm.fit(x_train, y_train)
+                else:
+                    oc_o_norm.set_estimators(estimators, x_train, y_train)
                 accuracy_o_norm = oc_o_norm.accuracy(x_test, y_test)
                 diary.add_entry('validation', ['dataset', name,
                                                'method', 'O-norm',
@@ -212,7 +246,10 @@ def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
                                                 bandwidth=bandwidth_t_norm)
                 oc_t_norm = OcDecomposition(base_estimator=e,
                                             normalization="T-norm")
-                oc_t_norm.fit(x_train, y_train)
+                if estimators is None:
+                    oc_t_norm.fit(x_train, y_train)
+                else:
+                    oc_t_norm.set_estimators(estimators, x_train, y_train)
                 accuracy_t_norm = oc_t_norm.accuracy(x_test, y_test)
                 diary.add_entry('validation', ['dataset', name,
                                                'method', 'T-norm',
@@ -249,7 +286,7 @@ def parse_arguments():
     parser.add_option("-d", "--dataset-names", dest="dataset_names",
             default=None, help="list of dataset names coma separated")
     parser.add_option("-e", "--estimator", dest="estimator_type",
-            default='gmm', type='string',
+            default='kernel', type='string',
             help="Estimator to use for the background check")
     parser.add_option("-m", "--mc-iterations", dest="mc_iterations",
             default=20, type=int,
