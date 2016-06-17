@@ -38,7 +38,7 @@ def table_number_iterations(df):
     return dfnit
 
 
-def wilcoxon_rank_sum_test_per_method_and_data(df, column='acc', signed=True):
+def wilcoxon_rank_sum_test_per_method_and_data(df, column='acc', signed=False):
     methods = np.sort(df.method.unique())
     datasets = np.sort(df.dataset.unique())
 
@@ -65,7 +65,7 @@ def wilcoxon_rank_sum_test_per_method_and_data(df, column='acc', signed=True):
                                           pvalue]])
     return dfstat
 
-def wilcoxon_rank_sum_test_per_method(df, column='acc', signed=True):
+def wilcoxon_rank_sum_test_per_method(df, column='acc', signed=False):
     methods = np.sort(df.method.unique())
     datasets = np.sort(df.dataset.unique())
     results = {}
@@ -87,6 +87,96 @@ def wilcoxon_rank_sum_test_per_method(df, column='acc', signed=True):
             dfstat = dfstat.append_rows([[method1, method2, statistic,
                                           pvalue]])
     return dfstat
+
+def create_latex_table(table, acctest, logltest, measures=['acc', 'logloss'],
+                       signed=False):
+    methods = table.columns.levels[2].values
+    datasets = np.sort(acctest.dataset.unique())
+
+    if len(methods) > 2:
+        print('LaTeX table not implemented for more than two methods yet')
+        return
+
+    header = ('\\begin{table}[t]\n'
+              '\\centering\n'
+              '\\scriptsize\n'
+              '\\begin{tabular}{l|ll|ll}\n'
+              '\\toprule')
+
+    if signed:
+        test = 'Wilcoxon signed-rank test'
+    else:
+        test = 'Wilcoxon rank-sum test'
+
+    footer = ('\\bottomrule\n'
+              '\\end{tabular}\n'
+              '\\captionof{table}{Mean and standard deviation of the accuracy '
+              'and log-loss on ' +str(len(datasets))+ ' datasets. '
+              'A ' + test + ' has been performed per each metric '
+              'and dataset comparing 20 iterations of 5-fold-crossvalidation'
+              '; * significant at $p<0.05$; ** significant at $p<0.005$; '
+              '*** significant at $p<0.001$.}\n'
+              '\\label{tab:change:label}\n'
+              '\\end{table}')
+    print(header)
+
+    line = ''
+    for measure in measures:
+        line += '\t&{}\t&'.format(measure)
+    line += '\\\\'
+    print(line)
+
+    line = 'method'
+    for measure in measures:
+        for method in methods:
+            line += '\t&{}'.format(method)
+    line += '\\\\ \midrule'
+    print(line)
+
+    for dataset in datasets:
+        line = dataset[:10]
+        for measure in measures:
+            if measure == 'acc':
+                bold_value = table.loc[dataset, ('mean', measure)].values.max()
+            elif measure == 'logloss':
+                bold_value = table.loc[dataset, ('mean', measure)].values.min()
+
+            for method in methods:
+                bold = False
+                line += '\t&\t'
+                mean = table.loc[dataset, ('mean', measure, method)]
+                std = table.loc[dataset, ('std', measure, method)]
+                if measure == 'acc':
+                    pvalue = acctest[acctest['dataset']==dataset]['pvalue'].values[0]
+                elif measure == 'logloss':
+                    pvalue = logltest[logltest['dataset']==dataset]['pvalue'].values[0]
+
+                if mean == bold_value:
+                    bold = True
+
+                if measure == 'acc':
+                    mean *= 100
+                    std *= 100
+
+                line += '$'
+                if bold:
+                    line += '\mathbf{'
+                line += '{:2.2f}\pm{:.1f}'.format(mean,std)
+                if bold:
+                    if pvalue < 0.05:
+                        line +='^{*'
+                        if pvalue < 0.005:
+                            line += '*'
+                        if pvalue < 0.001:
+                            line += '*'
+                        line += '}'
+                    line += '}'
+                line += '$'
+
+        line += '\\\\'
+        print line
+    print footer
+
 
 def main(input_files, output_file):
     # if there is no column for logloss read_csv will create NaNs
@@ -132,13 +222,19 @@ def main(input_files, output_file):
 
     print_full(table)
 
+    signed = True
+
     print("\nWilcoxon rank sum test per dataset and method Accuracy\n")
-    dfstat = wilcoxon_rank_sum_test_per_method_and_data(df, column='acc')
-    dfstat.print_full()
+    df_stat_acc = wilcoxon_rank_sum_test_per_method_and_data(df, column='acc',
+                                                             signed=signed)
+    df_stat_acc.print_full()
 
     print("\nWilcoxon rank sum test per dataset and method Logloss\n")
-    dfstat = wilcoxon_rank_sum_test_per_method_and_data(df, column='logloss')
-    dfstat.print_full()
+    df_stat_logl = wilcoxon_rank_sum_test_per_method_and_data(df,
+            column='logloss', signed=signed)
+    df_stat_logl.print_full()
+
+    create_latex_table(table, df_stat_acc, df_stat_logl, signed=signed)
 
     print("\nAccuracy and logloss per method and all datasets\n")
     table = df.pivot_table(values=['acc', 'logloss'], index=[],
@@ -146,11 +242,12 @@ def main(input_files, output_file):
     print_full(table)
 
     print("\nWilcoxon rank sum test per method and all datasets Accuracy\n")
-    dfstat = wilcoxon_rank_sum_test_per_method(df, column='acc')
+    dfstat = wilcoxon_rank_sum_test_per_method(df, column='acc', signed=signed)
     dfstat.print_full()
 
     print("\nWilcoxon rank sum test per method and all datasets Logloss\n")
-    dfstat = wilcoxon_rank_sum_test_per_method(df, column='logloss')
+    dfstat = wilcoxon_rank_sum_test_per_method(df, column='logloss',
+            signed=signed)
     dfstat.print_full()
 
 
