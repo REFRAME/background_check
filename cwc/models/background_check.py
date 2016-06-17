@@ -52,6 +52,16 @@ class BackgroundCheck(object):
         else:
             self._max_dens = dens.max()
 
+    def set_estimator(self, estimator, X):
+        self._estimator = estimator
+        dens = self.score(X)
+        self._delta = 0.0 - dens.min()
+        dens = expit(dens + self._delta)
+        if hasattr(self._estimator, 'maximum'):
+            self._max_dens = expit(self._estimator.maximum[0] + self._delta)
+        else:
+            self._max_dens = dens.max()
+
     def predict_proba(self, X, mu=None, m=None):
         """Performs background check on the data in X.
 
@@ -103,7 +113,7 @@ class BackgroundCheck(object):
         """
         if 'score' in dir(self._estimator):
             s = self._estimator.score(X)
-            if np.alen(s) == 1:
+            if np.alen(s) != np.alen(X):
                 s = self._estimator.score_samples(X)
             return s
         elif 'decision_function' in dir(self._estimator):

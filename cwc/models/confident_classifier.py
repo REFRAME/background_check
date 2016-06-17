@@ -36,6 +36,10 @@ class ConfidentClassifier(object):
         posteriors = self.predict_proba(X, mu, m)
         return np.argmax(posteriors, axis=1)
 
+    def accuracy(self, X, y, mu=None, m=None):
+        predictions = self.predict(X, mu=mu, m=m)
+        return np.mean(predictions == y)
+
     @property
     def n_classes(self):
         return self._classifier._n_classes

@@ -15,6 +15,7 @@ from cwc.models.discriminative_models import MyDecisionTreeClassifier
 from cwc.models.background_check import BackgroundCheck
 from cwc.models.oc_decomposition import OcDecomposition
 from cwc.models.density_estimators import MyMultivariateKernelDensity
+from cwc.models.confident_classifier import ConfidentClassifier
 
 import pandas as pd
 from diary import Diary
@@ -107,7 +108,31 @@ def fit_estimators(base_estimator, X, y):
 def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
         n_folds=10, seed_num=42):
     if dataset_names is None:
-        dataset_names = ['glass', 'hepatitis', 'ionosphere', 'vowel']
+        datasets_li2014 = ['abalone', 'balance-scale', 'credit-approval',
+                'dermatology', 'ecoli', 'german', 'heart-statlog', 'hepatitis',
+                'horse', 'ionosphere', 'lung-cancer', 'libras-movement',
+                'mushroom', 'diabetes', 'landsat-satellite', 'segment',
+                'spambase', 'wdbc', 'wpbc', 'yeast']
+
+        datasets_hempstalk2008 = ['diabetes', 'ecoli', 'glass',
+                'heart-statlog', 'ionosphere', 'iris', 'letter',
+                'mfeat-karhunen', 'mfeat-morphological', 'mfeat-zernike',
+                'optdigits', 'pendigits', 'sonar', 'vehicle', 'waveform-5000']
+
+        datasets_others = [ 'diabetes', 'ecoli', 'glass', 'heart-statlog',
+                'ionosphere', 'iris', 'letter', 'mfeat-karhunen',
+                'mfeat-morphological', 'mfeat-zernike', 'optdigits',
+                'pendigits', 'sonar', 'vehicle', 'waveform-5000',
+                'scene-classification', 'tic-tac', 'autos', 'car', 'cleveland',
+                'dermatology', 'flare', 'page-blocks', 'segment', 'shuttle',
+                'vowel', 'zoo', 'abalone', 'balance-scale', 'credit-approval',
+                'german', 'hepatitis', 'lung-cancer']
+
+        # Datasets that we can add but need to be reduced
+        datasets_to_add = ['MNIST']
+
+        dataset_names = list(set(datasets_li2014 + datasets_hempstalk2008 +
+            datasets_others))
 
     bandwidths_o_norm = {'glass': 0.09, 'hepatitis': 0.105,
                          'ionosphere': 0.039, 'vowel': 0.075}
@@ -120,7 +145,7 @@ def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
 
     tuned_mus = {'glass': [0.094, 0.095, 0.2, 0.0, 0.0, 0.1],
                  'vowel': [0.0, 0.0, 0.5, 0.5, 0.5, 0.0]}
-    
+
     tuned_ms = {'glass': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
                 'vowel': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]}
 
@@ -201,63 +226,63 @@ def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
                 elif estimator_type == "kernel":
                     est = MyMultivariateKernelDensity(kernel='gaussian',
                                                       bandwidth=bandwidth_bc)
-                estimators = None
-                bcs = None
-                if estimator_type == "kernel":
-                    estimators, bcs = fit_estimators(
-                                                  MyMultivariateKernelDensity(
-                                                      kernel='gaussian',
-                                                      bandwidth=bandwidth_bc),
-                                        x_train, y_train)
-
-                # Untuned background check
-                bc = BackgroundCheck(estimator=est, mu=0.0, m=1.0)
-                oc = OcDecomposition(base_estimator=bc)
-                if estimators is None:
-                    oc.fit(x_train, y_train)
-                else:
-                    oc.set_estimators(bcs, x_train, y_train)
-                accuracy = oc.accuracy(x_test, y_test)
-                diary.add_entry('validation', ['dataset', name,
-                                               'method', 'BC',
-                                               'mc', mc,
-                                               'test_fold', test_fold,
-                                               'acc', accuracy])
-                df = df.append_rows([[name, 'BC', mc, test_fold, accuracy]])
-
-                e = MyMultivariateKernelDensity(kernel='gaussian',
-                                                bandwidth=bandwidth_o_norm)
-                oc_o_norm = OcDecomposition(base_estimator=e,
-                                            normalization="O-norm")
-                if estimators is None:
-                    oc_o_norm.fit(x_train, y_train)
-                else:
-                    oc_o_norm.set_estimators(estimators, x_train, y_train)
-                accuracy_o_norm = oc_o_norm.accuracy(x_test, y_test)
-                diary.add_entry('validation', ['dataset', name,
-                                               'method', 'O-norm',
-                                               'mc', mc,
-                                               'test_fold', test_fold,
-                                               'acc', accuracy_o_norm])
-                df = df.append_rows([[name, 'O-norm', mc, test_fold,
-                                      accuracy_o_norm]])
-
-                e = MyMultivariateKernelDensity(kernel='gaussian',
-                                                bandwidth=bandwidth_t_norm)
-                oc_t_norm = OcDecomposition(base_estimator=e,
-                                            normalization="T-norm")
-                if estimators is None:
-                    oc_t_norm.fit(x_train, y_train)
-                else:
-                    oc_t_norm.set_estimators(estimators, x_train, y_train)
-                accuracy_t_norm = oc_t_norm.accuracy(x_test, y_test)
-                diary.add_entry('validation', ['dataset', name,
-                                               'method', 'T-norm',
-                                               'mc', mc,
-                                               'test_fold', test_fold,
-                                               'acc', accuracy_t_norm])
-                df = df.append_rows([[name, 'T-norm', mc, test_fold,
-                                      accuracy_t_norm]])
+                # estimators = None
+                # bcs = None
+                # if estimator_type == "kernel":
+                #     estimators, bcs = fit_estimators(
+                #                                   MyMultivariateKernelDensity(
+                #                                       kernel='gaussian',
+                #                                       bandwidth=bandwidth_bc),
+                #                         x_train, y_train)
+                #
+                # # Untuned background check
+                # bc = BackgroundCheck(estimator=est, mu=0.0, m=1.0)
+                # oc = OcDecomposition(base_estimator=bc)
+                # if estimators is None:
+                #     oc.fit(x_train, y_train)
+                # else:
+                #     oc.set_estimators(bcs, x_train, y_train)
+                # accuracy = oc.accuracy(x_test, y_test)
+                # diary.add_entry('validation', ['dataset', name,
+                #                                'method', 'BC',
+                #                                'mc', mc,
+                #                                'test_fold', test_fold,
+                #                                'acc', accuracy])
+                # df = df.append_rows([[name, 'BC', mc, test_fold, accuracy]])
+                #
+                # e = MyMultivariateKernelDensity(kernel='gaussian',
+                #                                 bandwidth=bandwidth_o_norm)
+                # oc_o_norm = OcDecomposition(base_estimator=e,
+                #                             normalization="O-norm")
+                # if estimators is None:
+                #     oc_o_norm.fit(x_train, y_train)
+                # else:
+                #     oc_o_norm.set_estimators(estimators, x_train, y_train)
+                # accuracy_o_norm = oc_o_norm.accuracy(x_test, y_test)
+                # diary.add_entry('validation', ['dataset', name,
+                #                                'method', 'O-norm',
+                #                                'mc', mc,
+                #                                'test_fold', test_fold,
+                #                                'acc', accuracy_o_norm])
+                # df = df.append_rows([[name, 'O-norm', mc, test_fold,
+                #                       accuracy_o_norm]])
+                #
+                # e = MyMultivariateKernelDensity(kernel='gaussian',
+                #                                 bandwidth=bandwidth_t_norm)
+                # oc_t_norm = OcDecomposition(base_estimator=e,
+                #                             normalization="T-norm")
+                # if estimators is None:
+                #     oc_t_norm.fit(x_train, y_train)
+                # else:
+                #     oc_t_norm.set_estimators(estimators, x_train, y_train)
+                # accuracy_t_norm = oc_t_norm.accuracy(x_test, y_test)
+                # diary.add_entry('validation', ['dataset', name,
+                #                                'method', 'T-norm',
+                #                                'mc', mc,
+                #                                'test_fold', test_fold,
+                #                                'acc', accuracy_t_norm])
+                # df = df.append_rows([[name, 'T-norm', mc, test_fold,
+                #                       accuracy_t_norm]])
 
                 # Tuned background check
                 # if name in tuned_mus.keys():
@@ -279,6 +304,17 @@ def main(dataset_names=None, estimator_type="kernel", mc_iterations=1,
                 #                                'acc', accuracy_tuned])
                 # df = df.append_rows([[name, 'BC-tuned', mc, test_fold,
                 #                       accuracy_tuned]])
+
+                conf = ConfidentClassifier(estimator=est)
+                conf.fit(x_train, y_train)
+                accuracy_conf = conf.accuracy(x_test, y_test)
+                diary.add_entry('validation', ['dataset', name,
+                                               'method', 'BC(C4.5)',
+                                               'mc', mc,
+                                               'test_fold', test_fold,
+                                               'acc', accuracy_conf])
+                df = df.append_rows([[name, 'BC(C4.5)', mc, test_fold,
+                                      accuracy_conf]])
     export_summary(df, diary)
 
 def parse_arguments():
