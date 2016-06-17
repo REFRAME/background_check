@@ -17,6 +17,8 @@ from cwc.models.density_estimators import MyMultivariateNormal
 import pandas as pd
 from diary import Diary
 
+# Not to crop the output columns
+pd.set_option('expand_frame_repr', False)
 
 def separate_sets(x, y, test_fold_id, test_folds):
     x_test = x[test_folds == test_fold_id, :]
@@ -130,10 +132,6 @@ def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
         np.random.seed(seed_num)
         dataset.print_summary()
         diary.add_entry('datasets', [dataset.__str__()])
-        accuracies = np.zeros(mc_iterations * n_folds)
-        accuracies_li = np.zeros(mc_iterations * n_folds)
-        log_losses = np.zeros(mc_iterations * n_folds)
-        log_losses_li = np.zeros(mc_iterations * n_folds)
         for mc in np.arange(mc_iterations):
             skf = StratifiedKFold(dataset.target, n_folds=n_folds,
                                   shuffle=True)
@@ -166,10 +164,8 @@ def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
                 #                     n_ensemble=n_ensemble)
                 xs_bootstrap, ys_bootstrap = ensemble.fit(x_train, y_train)
                 accuracy = ensemble.accuracy(x_test, y_test)
-                accuracies[mc * n_folds + test_fold] = accuracy
 
                 log_loss = ensemble.log_loss(x_test, y_test)
-                log_losses[mc * n_folds + test_fold] = log_loss
                 diary.add_entry('validation', ['dataset', name,
                                                'method', 'our',
                                                'mc', mc,
@@ -184,9 +180,7 @@ def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
                                 ys=ys_bootstrap)
 
                 accuracy_li = ensemble_li.accuracy(x_test, y_test)
-                accuracies_li[mc * n_folds + test_fold] = accuracy_li
                 log_loss_li = ensemble_li.log_loss(x_test, y_test)
-                log_losses_li[mc * n_folds + test_fold] = log_loss_li
                 diary.add_entry('validation', ['dataset', name,
                                                'method', 'Li2014',
                                                'mc', mc,
