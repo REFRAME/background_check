@@ -102,6 +102,9 @@ def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
 
         dataset_names = list(set(datasets_li2014 + datasets_hempstalk2008 +
             datasets_others))
+        dataset_names = ['iris']
+    estimator_type='gmm'
+    n_ensemble=4
 
     # Diary to save the partial and final results
     diary = Diary(name='results_Li2014', path='results', overwrite=False,
@@ -140,7 +143,9 @@ def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
                 x_train, y_train, x_test, y_test = separate_sets(
                         dataset.data, dataset.target, test_fold, test_folds)
 
+                # Binary discriminative classifier
                 sv = SVC(kernel='linear', probability=True)
+                # Density estimator for the background check
                 if estimator_type == "svm":
                     gamma = 1.0/x_train.shape[1]
                     est = OneClassSVM(nu=0.1, gamma=gamma)
@@ -150,10 +155,10 @@ def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
                     est = GMM(n_components=3)
                 elif estimator_type == "mymvn":
                     est = MyMultivariateNormal()
+                # Multiclass discriminative model with one-vs-one binary class.
                 ovo = OvoClassifier(base_classifier=sv)
-                classifier = ConfidentClassifier(classifier=ovo,
-                                                 estimator=est, mu=0.5,
-                                                 m=0.5)
+                classifier = ConfidentClassifier(classifier=ovo, estimator=est,
+                                                 mu=0.5, m=0.5)
                 ensemble = Ensemble(base_classifier=classifier,
                                     n_ensemble=n_ensemble)
                 # classifier = ConfidentClassifier(classifier=sv,
@@ -175,6 +180,9 @@ def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
                 df = df.append_rows([[name, 'our', mc, test_fold, accuracy,
                                       log_loss]])
 
+                # Li2014: EP-CC model
+                # The classification confidence is used in learning the weights
+                # of the base classifier as well as in weighted voting.
                 ensemble_li = Ensemble(n_ensemble=n_ensemble, lambd=1e-8)
                 ensemble_li.fit(x_train, y_train, xs=xs_bootstrap,
                                 ys=ys_bootstrap)
