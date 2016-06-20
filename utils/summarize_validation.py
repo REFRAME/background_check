@@ -38,7 +38,8 @@ def table_number_iterations(df):
     return dfnit
 
 
-def wilcoxon_rank_sum_test_per_method_and_data(df, column='acc', signed=False):
+def wilcoxon_rank_sum_test_per_method_and_data(df, column='acc', signed=False,
+                                               twosided=True):
     methods = np.sort(df.method.unique())
     datasets = np.sort(df.dataset.unique())
 
@@ -61,11 +62,15 @@ def wilcoxon_rank_sum_test_per_method_and_data(df, column='acc', signed=False):
             else:
                 statistic, pvalue = stats.ranksums(results[method1].values,
                                                    results[method2].values)
+            if not twosided:
+                pvalue /= 2
             dfstat = dfstat.append_rows([[dataset, method1, method2, statistic,
                                           pvalue]])
     return dfstat
 
-def wilcoxon_rank_sum_test_per_method(df, column='acc', signed=False):
+
+def wilcoxon_rank_sum_test_per_method(df, column='acc', signed=False,
+                                      twosided=True):
     methods = np.sort(df.method.unique())
     datasets = np.sort(df.dataset.unique())
     results = {}
@@ -84,9 +89,33 @@ def wilcoxon_rank_sum_test_per_method(df, column='acc', signed=False):
             else:
                 statistic, pvalue = stats.ranksums(results[method1].values,
                                                    results[method2].values)
+            if not twosided:
+                pvalue /= 2
             dfstat = dfstat.append_rows([[method1, method2, statistic,
                                           pvalue]])
     return dfstat
+
+
+def friedman_test_per_method_and_data(df, column='acc'):
+    methods = np.sort(df.method.unique())
+
+    results = {}
+    first = True
+    for method in methods:
+        results[method] = df[df['method']==method]['acc'].values
+        if first:
+            size = results[method].shape[0]
+            first = False
+        elif size != results[method].shape[0]:
+            print("Friedman test can not be done with different sample sizes")
+            return
+
+    statistic, pvalue = stats.friedmanchisquare(results[methods[0]],
+                                                results[methods[1]],
+                                                results[methods[2]])
+    from IPython import embed
+    embed()
+    return statistic, pvalue
 
 def create_latex_table(table, acctest, logltest, measures=['acc', 'logloss'],
                        signed=False):
@@ -206,6 +235,7 @@ def main(input_files, output_file):
                 print e
                 pass
 
+
     print("\nThe number of iterations per dataset and method\n")
     dfnit = table_number_iterations(df)
 
@@ -222,33 +252,44 @@ def main(input_files, output_file):
 
     print_full(table)
 
-    signed = True
+    signeds = [True, False]
 
-    print("\nWilcoxon rank sum test per dataset and method Accuracy\n")
-    df_stat_acc = wilcoxon_rank_sum_test_per_method_and_data(df, column='acc',
-                                                             signed=signed)
-    df_stat_acc.print_full()
+    methods = table.columns.levels[2].values
 
-    print("\nWilcoxon rank sum test per dataset and method Logloss\n")
-    df_stat_logl = wilcoxon_rank_sum_test_per_method_and_data(df,
-            column='logloss', signed=signed)
-    df_stat_logl.print_full()
+    for signed in signeds:
+        test = 'Wilcoxon signed-rank' if signed else 'Wilcoxon rank-sum'
+        print("\n{} test per dataset and method Accuracy\n".format(test))
+        df_stat_acc = wilcoxon_rank_sum_test_per_method_and_data(df, column='acc',
+                                                                 signed=signed,
+                                                                 twosided=True)
+        df_stat_acc.print_full()
 
-    create_latex_table(table, df_stat_acc, df_stat_logl, signed=signed)
+        print("\n{} test per dataset and method Logloss\n".format(test))
+        df_stat_logl = wilcoxon_rank_sum_test_per_method_and_data(df,
+                column='logloss', signed=signed, twosided=True)
+        df_stat_logl.print_full()
 
-    print("\nAccuracy and logloss per method and all datasets\n")
-    table = df.pivot_table(values=['acc', 'logloss'], index=[],
-                           columns=['method'], aggfunc=[np.mean, np.std])
-    print_full(table)
+        create_latex_table(table, df_stat_acc, df_stat_logl, signed=signed)
 
-    print("\nWilcoxon rank sum test per method and all datasets Accuracy\n")
-    dfstat = wilcoxon_rank_sum_test_per_method(df, column='acc', signed=signed)
-    dfstat.print_full()
+        if len(methods) > 2:
+            print("\nFriedman test per method and dataset\n")
+            statistic, pvalue = friedman_test_per_method_and_data(df, column='acc')
+            print("Statistic = {}, pvalue = {}".format(statistic, pvalue))
 
-    print("\nWilcoxon rank sum test per method and all datasets Logloss\n")
-    dfstat = wilcoxon_rank_sum_test_per_method(df, column='logloss',
-            signed=signed)
-    dfstat.print_full()
+        print("\nAccuracy and logloss per method and all datasets\n")
+        table_mean = df.pivot_table(values=['acc', 'logloss'], index=[],
+                               columns=['method'], aggfunc=[np.mean, np.std])
+        print_full(table_mean)
+
+        print("\n{} test per method and all datasets Accuracy\n".format(test))
+        dfstat = wilcoxon_rank_sum_test_per_method(df, column='acc',
+                signed=signed, twosided=True)
+        dfstat.print_full()
+
+        print("\n{} test per method and all datasets Logloss\n".format(test))
+        dfstat = wilcoxon_rank_sum_test_per_method(df, column='logloss',
+                signed=signed, twosided=True)
+        dfstat.print_full()
 
 
 def parse_arguments():
