@@ -102,9 +102,6 @@ def main(dataset_names=None, estimator_type="gmm", mc_iterations=20, n_folds=5,
 
         dataset_names = list(set(datasets_li2014 + datasets_hempstalk2008 +
             datasets_others))
-        dataset_names = ['iris']
-    estimator_type='gmm'
-    n_ensemble=4
 
     # Diary to save the partial and final results
     diary = Diary(name='results_Li2014', path='results', overwrite=False,
