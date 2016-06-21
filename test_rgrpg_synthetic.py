@@ -15,8 +15,8 @@ from sklearn.preprocessing import label_binarize
 from sklearn.metrics import roc_curve
 from sklearn.metrics import auc
 
-from cwc.synthetic_data import toy_examples
-from cwc.synthetic_data import reject
+from cwc.data_wrappers import toy_examples
+from cwc.data_wrappers import reject
 from cwc.evaluation.rgrpg import RGRPG
 from cwc.evaluation.rgp import RGP
 from cwc.evaluation.abstaingaincurve import AbstainGainCurve

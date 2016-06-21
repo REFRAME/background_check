@@ -11,7 +11,7 @@ plt.rcParams['figure.autolayout'] = True
 from sklearn.cross_validation import StratifiedKFold
 from sklearn.ensemble import BaggingClassifier
 from sklearn.tree import DecisionTreeClassifier
-from cwc.synthetic_data.datasets import MLData
+from cwc.data_wrappers.datasets import MLData
 from cwc.models.density_estimators import MultivariateNormal
 from cwc.models.density_estimators import MyMultivariateNormal
 

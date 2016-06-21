@@ -10,7 +10,7 @@ from sklearn.svm import OneClassSVM
 from sklearn.mixture import GMM
 from sklearn.neighbors import KernelDensity
 
-from cwc.synthetic_data.datasets import Data
+from cwc.data_wrappers.datasets import Data
 from cwc.models.discriminative_models import MyDecisionTreeClassifier
 from cwc.models.background_check import BackgroundCheck
 from cwc.models.oc_decomposition import OcDecomposition

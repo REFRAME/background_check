@@ -13,8 +13,8 @@ from sklearn import svm
 from sklearn import tree
 from sklearn.preprocessing import label_binarize
 
-from cwc.synthetic_data import toy_examples
-from cwc.synthetic_data import reject
+from cwc.data_wrappers import toy_examples
+from cwc.data_wrappers import reject
 from cwc.visualization import heatmaps
 from cwc.visualization import scatterplots
 
@@ -158,7 +158,7 @@ def train_reject_model(x, r):
     points and low probability values for reject points.
     """
     model_rej = svm.SVC(probability=True)
-    #model_rej = tree.DecisionTreeClassifier(max_depth=7)
+    #model_rej = tree.DecisionTreeClassifier(max_depth=4)
 
     xr = np.vstack((x,r))
     y = np.hstack((np.ones(np.alen(x)), np.zeros(np.alen(r)))).T
@@ -180,7 +180,7 @@ if __name__ == "__main__":
     n_thresholds = 100
     accuracies = np.empty((n_iterations, n_thresholds))
     recalls = np.empty((n_iterations, n_thresholds))
-    for example in [3]:
+    for example in [7]:
         np.random.seed(42)
         print('Running example = {}'.format(example))
 
@@ -204,11 +204,23 @@ if __name__ == "__main__":
         model_clas_ts = model_clas.predict_proba(x)
         model_clas_rs = model_clas.predict_proba(r)
 
-        p_x = np.hstack([model_clas_ts, x])
-        p_r = np.hstack([model_clas_rs, r])
+        p_x = x
+        p_r = r
 
         # Classifier of reject data
         model_rej = train_reject_model(p_x, p_r)
+
+        # TRAINING SCORES
+        c1_rs = model_rej.predict_proba(r)
+        c1_ts = model_rej.predict_proba(x)
+        c2_ts = model_clas.predict_proba(x)
+
+        ace1, ace2, cace = compute_cace(c1_rs, c1_ts, c2_ts, y)
+
+        print('TRAIN RESULTS')
+        print('Step1 Average Cross-entropy = {}'.format(ace1))
+        print('Step2 Average Cross-entropy = {}'.format(ace2))
+        print('Composite Average Cross-entropy = {}'.format(cace))
 
         #####################################################
         # VALIDATION                                        #
@@ -227,11 +239,22 @@ if __name__ == "__main__":
         fig.savefig('{}_validation_data_synthetic_example.pdf'.format(example))
 
         # TEST SCORES
+        c1_rs = model_rej.predict_proba(r)
+        c1_ts = model_rej.predict_proba(x)
+        c2_ts = model_clas.predict_proba(x)
+
+        ace1, ace2, cace = compute_cace(c1_rs, c1_ts, c2_ts, y)
+
+        print('TEST RESULTS')
+        print('Step1 Average Cross-entropy = {}'.format(ace1))
+        print('Step2 Average Cross-entropy = {}'.format(ace2))
+        print('Composite Average Cross-entropy = {}'.format(cace))
+
         model_clas_ts = model_clas.predict_proba(x)
         model_clas_rs = model_clas.predict_proba(r)
 
-        p_x = np.hstack([model_clas_ts, x])
-        p_r = np.hstack([model_clas_rs, r])
+        p_x = x
+        p_r = r
 
         model_rej_rs = model_rej.predict_proba(p_r)
         model_rej_ts = model_rej.predict_proba(p_x)
@@ -354,7 +377,7 @@ if __name__ == "__main__":
 
             model_clas_grid = model_clas.predict_proba(x_grid)
 
-            p_x_grid = np.hstack([model_clas_grid, x_grid])
+            p_x_grid = x_grid
 
             model_rej_grid = model_rej.predict_proba(p_x_grid)
 

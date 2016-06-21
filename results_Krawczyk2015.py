@@ -11,7 +11,7 @@ from sklearn.mixture import GMM
 # import matplotlib.pyplot as plt
 # plt.rcParams['figure.autolayout'] = True
 
-from cwc.synthetic_data.datasets import Data
+from cwc.data_wrappers.datasets import Data
 from cwc.models.discriminative_models import MyDecisionTreeClassifier
 from cwc.models.background_check import BackgroundCheck
 from cwc.models.oc_decomposition import OcDecomposition

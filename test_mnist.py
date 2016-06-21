@@ -1,7 +1,7 @@
 from __future__ import division
 import numpy as np
 
-from cwc.synthetic_data import reject
+from cwc.data_wrappers import reject
 # from cwc.evaluation.confidence_intervals import ConfidenceIntervals
 from sklearn.preprocessing import minmax_scale
 from sklearn import svm

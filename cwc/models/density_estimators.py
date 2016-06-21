@@ -1,5 +1,5 @@
 from sklearn import svm
-from ..synthetic_data import reject
+from ..data_wrappers import reject
 import numpy as np
 from scipy.stats import multivariate_normal
 from sklearn.mixture import GMM

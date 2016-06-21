@@ -80,7 +80,6 @@ class OvoClassifier(object):
             new_check = 1.0 - probas[:, -1]
             check_probs[range(n), predictions] = np.minimum(old_check,
                                                             new_check)
-
         predictions = votes.argmax(axis=1)
         confidences = confidences[range(n), predictions]
         check_probs = check_probs[range(n), predictions]

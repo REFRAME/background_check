@@ -14,8 +14,8 @@ from sklearn.cross_validation import StratifiedKFold
 from sklearn.ensemble import BaggingClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import OneClassSVM
-from cwc.synthetic_data.datasets import Data
-from cwc.synthetic_data import reject
+from cwc.data_wrappers.datasets import Data
+from cwc.data_wrappers import reject
 from cwc.visualization.cost_lines import plot_skew_lines
 from cwc.visualization.roc_analysis import plot_roc_curve
 from cwc.models.background_check import BackgroundCheck

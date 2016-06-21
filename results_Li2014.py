@@ -8,7 +8,7 @@ from sklearn.svm import OneClassSVM
 from sklearn.mixture import GMM
 from sklearn.svm import SVC
 
-from cwc.synthetic_data.datasets import Data
+from cwc.data_wrappers.datasets import Data
 from cwc.models.ovo_classifier import OvoClassifier
 from cwc.models.confident_classifier import ConfidentClassifier
 from cwc.models.ensemble import Ensemble

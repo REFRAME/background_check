@@ -540,7 +540,7 @@ class MLData(Data):
     def __init__(self, data_home='./datasets/', load_all=False):
         warnings.simplefilter('always', DeprecationWarning)
         warnings.warn(('This Class is going to be deprecated in a future '
-                       'version, please use cwc.synthetic_data.Data instead.'),
+                       'version, please use cwc.data_wrappers.Data instead.'),
                       DeprecationWarning)
         self.data_home = data_home
         self.datasets = {}

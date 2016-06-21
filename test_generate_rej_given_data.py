@@ -5,8 +5,8 @@ plt.ion()
 
 from sklearn.decomposition import PCA
 
-from cwc.synthetic_data import toy_examples
-from cwc.synthetic_data import reject
+from cwc.data_wrappers import toy_examples
+from cwc.data_wrappers import reject
 
 
 def test_rej_data():
