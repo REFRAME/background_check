@@ -58,17 +58,79 @@ class NormalDistribution(object):
     def sample(self, n):
         return norm.rvs(loc=self.mu, scale=self.sigma, size=n)
 
+class MixtureGaussians(object):
+    def __init__(self, gaussians, priors=None):
+        self.gaussians = gaussians
+        if priors is None:
+            self.priors = np.ones(self.n_gaussians)/self.n_gaussians
+        else:
+            self.priors = priors
 
-def plot_confusion_matrix(cm, labels, title='Confusion matrix', cmap=plt.cm.Blues):
-    plt.imshow(cm, interpolation='nearest', cmap=cmap)
-    plt.title(title)
-    plt.colorbar()
+    def add_gaussian(self, gaussian, prior=None):
+        self.gaussians.append(gaussian)
+        if prior is None:
+            self.priors = np.ones(self.n_gaussians)/self.n_gaussians
+        else:
+            self.priors.append(prior)
+
+    @property
+    def n_gaussians(self):
+        return len(self.gaussians)
+
+    @property
+    def priors_norm(self):
+        return self.priors/np.sum(self.priors)
+
+    def pdf(self,x):
+        result = np.zeros_like(x, dtype=float)
+        for prior, gaussian in zip(self.priors_norm, self.gaussians):
+            result += gaussian.pdf(x)*prior
+        return result
+
+    def sample(self, n):
+        result = np.zeros(n, dtype=float)
+        ns = np.random.multinomial(n, self.priors_norm)
+        index = 0
+        for n_i, prior, gaussian in zip(ns, self.priors_norm, self.gaussians):
+            result[index:index+n_i] = gaussian.sample(n_i)
+            index += n_i
+        return result
+
+
+
+def plot_confusion_matrix(cm, labels, title='Confusion matrix',
+        cmap=plt.cm.Blues, show_accuracy=True):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
+    res = ax.imshow(cm, interpolation='nearest', cmap=cmap)
+
+    ax.set_aspect(1)
+
+    cb = fig.colorbar(res)
     tick_marks = np.arange(len(labels))
-    plt.xticks(tick_marks, labels, rotation=45)
-    plt.yticks(tick_marks, labels)
-    plt.tight_layout()
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label')
+    ax.set_xticks(tick_marks)
+    ax.set_xticklabels(labels, rotation=45)
+    ax.set_yticks(tick_marks)
+    ax.set_yticklabels(labels)
+
+    fig.tight_layout()
+
+    ax.set_ylabel('True label')
+    ax.set_xlabel('Predicted label')
+    if show_accuracy:
+        ax.set_title("{} (acc={:2.2f}%)".format(title,
+            np.true_divide(100*np.diag(cm).sum(),cm.sum())))
+    else:
+        ax.set_title(title)
+
+    width, height = cm.shape
+
+    for x in xrange(width):
+        for y in xrange(height):
+            ax.annotate(str(cm[x][y]), xy=(y, x),
+                            horizontalalignment='center',
+                            verticalalignment='center')
 
 
 if __name__ == '__main__':
