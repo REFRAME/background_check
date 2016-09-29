@@ -3,6 +3,10 @@
 This is a framework to create and evaluate classifier models with confidence
 levels.
 
+## Supplementary material
+
+The suplementary material can be found in [icdm2016](./icdm2016/).
+
 ### Dependencies
 
 * [Numpy] - NumPy is the fundamental package for scientific computing with
